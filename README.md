@@ -148,6 +148,24 @@ Current code separation:
 - `src/xplane_mcp/mcp_server.py`: MCP-facing service layer that uses the X-Plane client
 - `src/xplane_mcp/poc.py`: CLI runner for the README Phase 0 checklist
 
+## Integration tests
+
+The default `pytest` suite is unit-only and uses mocks. Live simulator tests are opt-in because they really do change the running X-Plane session.
+
+Run them with:
+
+```bash
+set XPLANE_RUN_INTEGRATION=1
+set XPLANE_ROOT=E:\SteamLibrary\steamapps\common\X-Plane 12
+pytest -m integration
+```
+
+Optional overrides:
+
+- `XPLANE_HOST` and `XPLANE_PORT` for non-default API binding
+- `XPLANE_TIMEOUT` for slower aircraft loads
+- `XPLANE_TEST_AIRPORT` and `XPLANE_TEST_RAMP` for the live start-flight test
+
 ## Conventional Commits
 
 Use prefixes such as `feat:`, `fix:`, `docs:`, `test:`, `chore:`, `refactor:` with an optional scope, for example:

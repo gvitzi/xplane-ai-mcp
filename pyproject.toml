@@ -24,3 +24,6 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+  "integration: live tests against a running X-Plane instance",
+]
