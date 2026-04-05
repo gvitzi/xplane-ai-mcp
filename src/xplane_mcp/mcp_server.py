@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .xplane_client import (
+    XPlaneAircraftModel,
     XPlaneHttpClient,
     XPlaneWebSocketClient,
     wait_for_dataref_update,
@@ -46,6 +47,17 @@ class XPlaneMCPServer:
         ramp: str = "A1",
     ) -> dict[str, Any]:
         return await self._http.move_plane_to_airport(airport_id, ramp=ramp)
+
+    def list_available_planes(self) -> list[XPlaneAircraftModel]:
+        return self._http.list_available_planes()
+
+    async def change_plane_model(
+        self,
+        aircraft_path: str,
+        *,
+        livery: str | None = None,
+    ) -> dict[str, Any]:
+        return await self._http.change_plane_model(aircraft_path, livery=livery)
 
     async def resolve_dataref(self, dataref_name: str | None) -> dict[str, Any]:
         if dataref_name:

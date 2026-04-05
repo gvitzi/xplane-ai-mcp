@@ -5,6 +5,7 @@ import base64
 import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -44,6 +45,7 @@ class XPlaneConfig:
     host: str = DEFAULT_HOST
     port: int = DEFAULT_PORT
     timeout: float = DEFAULT_TIMEOUT
+    xplane_root: Path | None = None
 
     @property
     def capabilities_url(self) -> str:
@@ -62,6 +64,19 @@ class XPlaneConfig:
 class XPlaneAircraft:
     path: str
     livery: str | None = None
+
+
+@dataclass(frozen=True)
+class XPlanePosition:
+    latitude: float
+    longitude: float
+    heading_true: float
+
+
+@dataclass(frozen=True)
+class XPlaneAircraftModel:
+    name: str
+    path: str
 
 
 class XPlaneHttpClient:
@@ -127,6 +142,41 @@ class XPlaneHttpClient:
             flight_data["aircraft"]["livery"] = selected_aircraft.livery
         return await self.start_flight(flight_data)
 
+    async def change_plane_model(
+        self,
+        aircraft_path: str,
+        *,
+        livery: str | None = None,
+    ) -> dict[str, Any]:
+        if not aircraft_path:
+            raise ValueError("aircraft_path is required")
+
+        position = await self.get_current_position()
+        flight_data = {
+            "lle_ground_start": {
+                "latitude": position.latitude,
+                "longitude": position.longitude,
+                "heading_true": position.heading_true,
+            },
+            "aircraft": {
+                "path": aircraft_path,
+            },
+        }
+        if livery:
+            flight_data["aircraft"]["livery"] = livery
+        return await self.start_flight(flight_data)
+
+    def list_available_planes(self) -> list[XPlaneAircraftModel]:
+        aircraft_root = self._get_aircraft_root()
+        models = [
+            XPlaneAircraftModel(
+                name=acf_path.stem.replace("_", " "),
+                path=acf_path.relative_to(self.config.xplane_root).as_posix(),
+            )
+            for acf_path in sorted(aircraft_root.rglob("*.acf"))
+        ]
+        return models
+
     async def find_dataref(self, name: str) -> dict[str, Any]:
         response = await self._client.get(
             "/datarefs",
@@ -178,6 +228,30 @@ class XPlaneHttpClient:
 
         livery = _decode_dataref_data(livery_value.get("data")) or None
         return XPlaneAircraft(path=aircraft_path, livery=livery)
+
+    async def get_current_position(self) -> XPlanePosition:
+        latitude_dataref = await self.find_dataref("sim/flightmodel/position/latitude")
+        longitude_dataref = await self.find_dataref("sim/flightmodel/position/longitude")
+        heading_dataref = await self.find_dataref("sim/flightmodel/position/true_psi")
+
+        latitude_value = await self.get_dataref_value(latitude_dataref["id"])
+        longitude_value = await self.get_dataref_value(longitude_dataref["id"])
+        heading_value = await self.get_dataref_value(heading_dataref["id"])
+
+        return XPlanePosition(
+            latitude=float(latitude_value["data"]),
+            longitude=float(longitude_value["data"]),
+            heading_true=float(heading_value["data"]),
+        )
+
+    def _get_aircraft_root(self) -> Path:
+        if self.config.xplane_root is None:
+            raise ValueError("xplane_root is required to list available planes")
+
+        aircraft_root = self.config.xplane_root / "Aircraft"
+        if not aircraft_root.exists():
+            raise ValueError(f"Aircraft directory not found: {aircraft_root}")
+        return aircraft_root
 
     @staticmethod
     def _parse_response(

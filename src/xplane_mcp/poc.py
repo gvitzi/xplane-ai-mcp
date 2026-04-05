@@ -23,6 +23,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--port", type=int, default=8086)
     parser.add_argument("--timeout", type=float, default=5.0)
     parser.add_argument(
+        "--xplane-root",
+        help="Path to the X-Plane installation root for listing available aircraft.",
+    )
+    parser.add_argument(
         "--airport-icao",
         help="Start a new flight at the given ICAO airport using the current aircraft.",
     )
@@ -30,6 +34,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--airport-ramp",
         default="A1",
         help="Ramp name to use with --airport-icao. Defaults to A1.",
+    )
+    parser.add_argument(
+        "--list-planes",
+        action="store_true",
+        help="List available aircraft models from the local X-Plane installation.",
+    )
+    parser.add_argument(
+        "--aircraft-path",
+        help="Change the current aircraft model to this .acf path relative to X-Plane root.",
+    )
+    parser.add_argument(
+        "--aircraft-livery",
+        help="Optional livery name when changing aircraft model.",
     )
     parser.add_argument(
         "--dataref",
@@ -49,22 +66,49 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 async def run_poc(args: argparse.Namespace) -> int:
-    config = XPlaneConfig(host=args.host, port=args.port, timeout=args.timeout)
+    xplane_root = Path(args.xplane_root) if args.xplane_root else None
+    config = XPlaneConfig(
+        host=args.host,
+        port=args.port,
+        timeout=args.timeout,
+        xplane_root=xplane_root,
+    )
 
     async with XPlaneHttpClient(config) as http_client:
         websocket_client = XPlaneWebSocketClient(config)
         server = XPlaneMCPServer(http_client, websocket_client)
 
+        if args.list_planes:
+            print("Available aircraft:")
+            print(
+                json.dumps(
+                    [
+                        {"name": plane.name, "path": plane.path}
+                        for plane in server.list_available_planes()
+                    ],
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+            if args.skip_flight and not args.dataref:
+                await websocket_client.close()
+                return 0
+
         capabilities = await server.get_capabilities()
         print("Capabilities:")
         print(json.dumps(capabilities, indent=2, sort_keys=True))
 
-        if not args.skip_flight and (args.flight_json or args.airport_icao):
+        if not args.skip_flight and (args.flight_json or args.airport_icao or args.aircraft_path):
             try:
                 if args.airport_icao:
                     flight_result = await server.move_plane_to_airport(
                         args.airport_icao,
                         ramp=args.airport_ramp,
+                    )
+                elif args.aircraft_path:
+                    flight_result = await server.change_plane_model(
+                        args.aircraft_path,
+                        livery=args.aircraft_livery,
                     )
                 else:
                     flight_data = _load_json_file(args.flight_json)

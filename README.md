@@ -112,6 +112,18 @@ loaded aircraft and provide an airport plus ramp:
 python -m xplane_mcp.poc --airport-icao EDDB --airport-ramp "GATE 01"
 ```
 
+To list aircraft from the local X-Plane installation, provide the X-Plane root:
+
+```bash
+python -m xplane_mcp.poc --xplane-root "C:\X-Plane 12" --list-planes --skip-flight
+```
+
+To change the current aircraft model while staying at the current position:
+
+```bash
+python -m xplane_mcp.poc --aircraft-path "Aircraft/Laminar Research/Cessna 172SP/Cessna_172SP.acf"
+```
+
 What the PoC does:
 
 - Checks `GET /api/capabilities`
@@ -121,6 +133,8 @@ What the PoC does:
 - Waits for one streamed WebSocket update for the same dataref
 - Optionally starts a new flight via `POST /api/v3/flight`
 - Can start a new flight at an ICAO airport by reading the current aircraft path from X-Plane and issuing a new `POST /flight`
+- Can list installed aircraft models from the local X-Plane `Aircraft/` directory
+- Can switch the current aircraft model by reading the current lat/lon/heading and starting a new flight in place
 
 Current code separation:
 

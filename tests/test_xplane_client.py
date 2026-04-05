@@ -1,5 +1,6 @@
 import asyncio
 import json
+from pathlib import Path
 
 import httpx
 import pytest
@@ -7,9 +8,11 @@ import pytest
 from xplane_mcp.mcp_server import XPlaneMCPServer
 from xplane_mcp.xplane_client import (
     XPlaneAircraft,
+    XPlaneAircraftModel,
     XPlaneApiError,
     XPlaneConfig,
     XPlaneHttpClient,
+    XPlanePosition,
     XPlaneWebSocketClient,
     _decode_dataref_data,
     _message_mentions_dataref,
@@ -158,6 +161,115 @@ def test_move_plane_to_airport_uses_current_aircraft():
     assert payload == {"data": None}
 
 
+def test_change_plane_model_uses_current_position():
+    expected_body = {
+        "data": {
+            "lle_ground_start": {
+                "latitude": 52.3667,
+                "longitude": 13.5033,
+                "heading_true": 92.0,
+            },
+            "aircraft": {
+                "path": "Aircraft/Laminar Research/Cessna 172SP/Cessna_172SP.acf",
+                "livery": "default",
+            },
+        }
+    }
+
+    dataref_ids = {
+        "sim/flightmodel/position/latitude": 201,
+        "sim/flightmodel/position/longitude": 202,
+        "sim/flightmodel/position/true_psi": 203,
+    }
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/v3/flight":
+            assert json.loads(request.content) == expected_body
+            return httpx.Response(200, content=b"")
+
+        name = request.url.params.get("filter[name]")
+        if name in dataref_ids:
+            return httpx.Response(
+                200,
+                json={"data": [{"id": dataref_ids[name], "name": name, "value_type": "float"}]},
+            )
+        if request.url.path == "/api/v3/datarefs/201/value":
+            return httpx.Response(200, json={"data": 52.3667})
+        if request.url.path == "/api/v3/datarefs/202/value":
+            return httpx.Response(200, json={"data": 13.5033})
+        if request.url.path == "/api/v3/datarefs/203/value":
+            return httpx.Response(200, json={"data": 92.0})
+        raise AssertionError(f"Unexpected request: {request.url}")
+
+    async def run() -> dict:
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport, base_url="http://example/api/v3") as client:
+            api = XPlaneHttpClient(XPlaneConfig(), client=client)
+            return await api.change_plane_model(
+                "Aircraft/Laminar Research/Cessna 172SP/Cessna_172SP.acf",
+                livery="default",
+            )
+
+    payload = asyncio.run(run())
+    assert payload == {"data": None}
+
+
+def test_list_available_planes_reads_acf_files(tmp_path: Path):
+    aircraft_dir = tmp_path / "Aircraft" / "Laminar Research" / "Boeing 737-800"
+    aircraft_dir.mkdir(parents=True)
+    (aircraft_dir / "b738.acf").write_text("acf", encoding="utf-8")
+    second_dir = tmp_path / "Aircraft" / "Laminar Research" / "Cessna 172SP"
+    second_dir.mkdir(parents=True)
+    (second_dir / "Cessna_172SP.acf").write_text("acf", encoding="utf-8")
+
+    client = XPlaneHttpClient(XPlaneConfig(xplane_root=tmp_path))
+
+    planes = client.list_available_planes()
+
+    assert planes == [
+        XPlaneAircraftModel(
+            name="b738",
+            path="Aircraft/Laminar Research/Boeing 737-800/b738.acf",
+        ),
+        XPlaneAircraftModel(
+            name="Cessna 172SP",
+            path="Aircraft/Laminar Research/Cessna 172SP/Cessna_172SP.acf",
+        ),
+    ]
+
+
+def test_get_current_position_reads_lat_lon_and_heading():
+    dataref_ids = {
+        "sim/flightmodel/position/latitude": 201,
+        "sim/flightmodel/position/longitude": 202,
+        "sim/flightmodel/position/true_psi": 203,
+    }
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        name = request.url.params.get("filter[name]")
+        if name in dataref_ids:
+            return httpx.Response(
+                200,
+                json={"data": [{"id": dataref_ids[name], "name": name, "value_type": "float"}]},
+            )
+        if request.url.path == "/api/v3/datarefs/201/value":
+            return httpx.Response(200, json={"data": 52.3667})
+        if request.url.path == "/api/v3/datarefs/202/value":
+            return httpx.Response(200, json={"data": 13.5033})
+        if request.url.path == "/api/v3/datarefs/203/value":
+            return httpx.Response(200, json={"data": 92.0})
+        raise AssertionError(f"Unexpected request: {request.url}")
+
+    async def run() -> XPlanePosition:
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport, base_url="http://example/api/v3") as client:
+            api = XPlaneHttpClient(XPlaneConfig(), client=client)
+            return await api.get_current_position()
+
+    position = asyncio.run(run())
+    assert position == XPlanePosition(latitude=52.3667, longitude=13.5033, heading_true=92.0)
+
+
 def test_api_error_surfaces_xplane_error_details():
     async def handler(_: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -286,3 +398,28 @@ def test_mcp_server_moves_plane_to_airport():
     result = asyncio.run(run())
     assert result["data"]["airport_id"] == "EDDB"
     assert result["data"]["ramp"] == "A2"
+
+
+def test_mcp_server_lists_available_planes():
+    class FakeHttpClient:
+        def list_available_planes(self):
+            return [XPlaneAircraftModel(name="b738", path="Aircraft/Laminar Research/Boeing 737-800/b738.acf")]
+
+    server = XPlaneMCPServer(FakeHttpClient())
+    planes = server.list_available_planes()
+
+    assert planes[0].path.endswith("b738.acf")
+
+
+def test_mcp_server_changes_plane_model():
+    class FakeHttpClient:
+        async def change_plane_model(self, aircraft_path, livery=None):
+            return {"data": {"path": aircraft_path, "livery": livery}}
+
+    async def run():
+        server = XPlaneMCPServer(FakeHttpClient())
+        return await server.change_plane_model("Aircraft/Laminar Research/Cessna 172SP/Cessna_172SP.acf", livery="default")
+
+    result = asyncio.run(run())
+    assert result["data"]["path"].endswith("Cessna_172SP.acf")
+    assert result["data"]["livery"] == "default"
