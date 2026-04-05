@@ -28,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--airport-icao",
-        help="Start a new flight at the given ICAO airport using the current aircraft.",
+        help="Start a new flight at the given ICAO airport. Use --aircraft-path to choose the model, or omit it to reuse the current aircraft.",
     )
     parser.add_argument(
         "--airport-ramp",
@@ -42,7 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--aircraft-path",
-        help="Change the current aircraft model to this .acf path relative to X-Plane root.",
+        help="Aircraft .acf path relative to X-Plane root. With --airport-icao it selects the model for the new flight; without it, the current model is changed in place.",
     )
     parser.add_argument(
         "--aircraft-livery",
@@ -101,9 +101,11 @@ async def run_poc(args: argparse.Namespace) -> int:
         if not args.skip_flight and (args.flight_json or args.airport_icao or args.aircraft_path):
             try:
                 if args.airport_icao:
-                    flight_result = await server.move_plane_to_airport(
+                    flight_result = await server.start_new_flight(
                         args.airport_icao,
                         ramp=args.airport_ramp,
+                        aircraft_path=args.aircraft_path,
+                        livery=args.aircraft_livery,
                     )
                 elif args.aircraft_path:
                     flight_result = await server.change_plane_model(

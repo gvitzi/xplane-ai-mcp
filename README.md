@@ -112,6 +112,12 @@ loaded aircraft and provide an airport plus ramp:
 python -m xplane_mcp.poc --airport-icao EDDB --airport-ramp "GATE 01"
 ```
 
+To start a new flight with both an airport and an explicit aircraft model:
+
+```bash
+python -m xplane_mcp.poc --airport-icao EDDB --airport-ramp "GATE 01" --aircraft-path "Aircraft/Laminar Research/Cessna 172SP/Cessna_172SP.acf"
+```
+
 To list aircraft from the local X-Plane installation, provide the X-Plane root:
 
 ```bash

@@ -161,6 +161,37 @@ def test_move_plane_to_airport_uses_current_aircraft():
     assert payload == {"data": None}
 
 
+def test_start_new_flight_uses_explicit_aircraft_when_provided():
+    expected_body = {
+        "data": {
+            "ramp_start": {"airport_id": "EDDB", "ramp": "GATE 01"},
+            "aircraft": {
+                "path": "Aircraft/Laminar Research/Cessna 172SP/Cessna_172SP.acf",
+                "livery": "default",
+            },
+        }
+    }
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v3/flight"
+        assert json.loads(request.content) == expected_body
+        return httpx.Response(200, content=b"")
+
+    async def run() -> dict:
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport, base_url="http://example/api/v3") as client:
+            api = XPlaneHttpClient(XPlaneConfig(), client=client)
+            return await api.start_new_flight(
+                "EDDB",
+                ramp="GATE 01",
+                aircraft_path="Aircraft/Laminar Research/Cessna 172SP/Cessna_172SP.acf",
+                livery="default",
+            )
+
+    payload = asyncio.run(run())
+    assert payload == {"data": None}
+
+
 def test_change_plane_model_uses_current_position():
     expected_body = {
         "data": {
@@ -398,6 +429,33 @@ def test_mcp_server_moves_plane_to_airport():
     result = asyncio.run(run())
     assert result["data"]["airport_id"] == "EDDB"
     assert result["data"]["ramp"] == "A2"
+
+
+def test_mcp_server_starts_new_flight_with_airport_and_model():
+    class FakeHttpClient:
+        async def start_new_flight(self, airport_id, ramp="A1", aircraft_path=None, livery=None):
+            return {
+                "data": {
+                    "airport_id": airport_id,
+                    "ramp": ramp,
+                    "aircraft_path": aircraft_path,
+                    "livery": livery,
+                }
+            }
+
+    async def run():
+        server = XPlaneMCPServer(FakeHttpClient())
+        return await server.start_new_flight(
+            "EDDB",
+            ramp="GATE 01",
+            aircraft_path="Aircraft/Laminar Research/Cessna 172SP/Cessna_172SP.acf",
+            livery="default",
+        )
+
+    result = asyncio.run(run())
+    assert result["data"]["airport_id"] == "EDDB"
+    assert result["data"]["aircraft_path"].endswith("Cessna_172SP.acf")
+    assert result["data"]["livery"] == "default"
 
 
 def test_mcp_server_lists_available_planes():

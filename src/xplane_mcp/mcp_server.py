@@ -48,6 +48,21 @@ class XPlaneMCPServer:
     ) -> dict[str, Any]:
         return await self._http.move_plane_to_airport(airport_id, ramp=ramp)
 
+    async def start_new_flight(
+        self,
+        airport_id: str,
+        *,
+        ramp: str = "A1",
+        aircraft_path: str | None = None,
+        livery: str | None = None,
+    ) -> dict[str, Any]:
+        return await self._http.start_new_flight(
+            airport_id,
+            ramp=ramp,
+            aircraft_path=aircraft_path,
+            livery=livery,
+        )
+
     def list_available_planes(self) -> list[XPlaneAircraftModel]:
         return self._http.list_available_planes()
 

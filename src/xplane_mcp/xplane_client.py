@@ -129,17 +129,42 @@ class XPlaneHttpClient:
             raise ValueError("airport_id is required")
 
         selected_aircraft = aircraft or await self.get_current_aircraft()
+        return await self.start_new_flight(
+            airport_id,
+            ramp=ramp,
+            aircraft_path=selected_aircraft.path,
+            livery=selected_aircraft.livery,
+        )
+
+    async def start_new_flight(
+        self,
+        airport_id: str,
+        *,
+        ramp: str = "A1",
+        aircraft_path: str | None = None,
+        livery: str | None = None,
+    ) -> dict[str, Any]:
+        if not airport_id:
+            raise ValueError("airport_id is required")
+
+        selected_aircraft_path = aircraft_path
+        selected_livery = livery
+        if selected_aircraft_path is None:
+            selected_aircraft = await self.get_current_aircraft()
+            selected_aircraft_path = selected_aircraft.path
+            selected_livery = selected_livery or selected_aircraft.livery
+
         flight_data = {
             "ramp_start": {
                 "airport_id": airport_id.upper(),
                 "ramp": ramp,
             },
             "aircraft": {
-                "path": selected_aircraft.path,
+                "path": selected_aircraft_path,
             },
         }
-        if selected_aircraft.livery:
-            flight_data["aircraft"]["livery"] = selected_aircraft.livery
+        if selected_livery:
+            flight_data["aircraft"]["livery"] = selected_livery
         return await self.start_flight(flight_data)
 
     async def change_plane_model(
