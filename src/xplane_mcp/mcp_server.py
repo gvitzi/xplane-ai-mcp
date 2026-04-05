@@ -39,6 +39,14 @@ class XPlaneMCPServer:
     async def start_flight(self, flight_data: dict[str, Any]) -> dict[str, Any]:
         return await self._http.start_flight(flight_data)
 
+    async def move_plane_to_airport(
+        self,
+        airport_id: str,
+        *,
+        ramp: str = "A1",
+    ) -> dict[str, Any]:
+        return await self._http.move_plane_to_airport(airport_id, ramp=ramp)
+
     async def resolve_dataref(self, dataref_name: str | None) -> dict[str, Any]:
         if dataref_name:
             try:

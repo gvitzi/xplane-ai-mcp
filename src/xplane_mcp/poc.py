@@ -23,6 +23,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--port", type=int, default=8086)
     parser.add_argument("--timeout", type=float, default=5.0)
     parser.add_argument(
+        "--airport-icao",
+        help="Start a new flight at the given ICAO airport using the current aircraft.",
+    )
+    parser.add_argument(
+        "--airport-ramp",
+        default="A1",
+        help="Ramp name to use with --airport-icao. Defaults to A1.",
+    )
+    parser.add_argument(
         "--dataref",
         default=DEFAULT_DATAREF,
         help="Preferred dataref name. If unavailable, the PoC falls back to the first listed dataref.",
@@ -50,10 +59,16 @@ async def run_poc(args: argparse.Namespace) -> int:
         print("Capabilities:")
         print(json.dumps(capabilities, indent=2, sort_keys=True))
 
-        if not args.skip_flight and args.flight_json:
-            flight_data = _load_json_file(args.flight_json)
+        if not args.skip_flight and (args.flight_json or args.airport_icao):
             try:
-                flight_result = await server.start_flight(flight_data)
+                if args.airport_icao:
+                    flight_result = await server.move_plane_to_airport(
+                        args.airport_icao,
+                        ramp=args.airport_ramp,
+                    )
+                else:
+                    flight_data = _load_json_file(args.flight_json)
+                    flight_result = await server.start_flight(flight_data)
                 print("Flight started:")
                 print(json.dumps(flight_result, indent=2, sort_keys=True))
                 await asyncio.sleep(2)

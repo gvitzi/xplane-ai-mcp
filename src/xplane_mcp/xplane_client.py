@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
@@ -57,6 +58,12 @@ class XPlaneConfig:
         return f"ws://{self.host}:{self.port}/api/v3"
 
 
+@dataclass(frozen=True)
+class XPlaneAircraft:
+    path: str
+    livery: str | None = None
+
+
 class XPlaneHttpClient:
     """Minimal async HTTP client for the X-Plane local Web API."""
 
@@ -96,6 +103,30 @@ class XPlaneHttpClient:
         response = await self._client.patch("/flight", json={"data": flight_data})
         return self._parse_response(response, allow_empty=True)
 
+    async def move_plane_to_airport(
+        self,
+        airport_id: str,
+        *,
+        ramp: str = "A1",
+        aircraft: XPlaneAircraft | None = None,
+    ) -> dict[str, Any]:
+        if not airport_id:
+            raise ValueError("airport_id is required")
+
+        selected_aircraft = aircraft or await self.get_current_aircraft()
+        flight_data = {
+            "ramp_start": {
+                "airport_id": airport_id.upper(),
+                "ramp": ramp,
+            },
+            "aircraft": {
+                "path": selected_aircraft.path,
+            },
+        }
+        if selected_aircraft.livery:
+            flight_data["aircraft"]["livery"] = selected_aircraft.livery
+        return await self.start_flight(flight_data)
+
     async def find_dataref(self, name: str) -> dict[str, Any]:
         response = await self._client.get(
             "/datarefs",
@@ -133,6 +164,20 @@ class XPlaneHttpClient:
     async def get_dataref_value(self, dataref_id: int | str) -> dict[str, Any]:
         response = await self._client.get(f"/datarefs/{dataref_id}/value")
         return self._parse_response(response)
+
+    async def get_current_aircraft(self) -> XPlaneAircraft:
+        path_dataref = await self.find_dataref("sim/aircraft/view/acf_relative_path")
+        livery_dataref = await self.find_dataref("sim/aircraft/view/acf_livery_path")
+
+        path_value = await self.get_dataref_value(path_dataref["id"])
+        livery_value = await self.get_dataref_value(livery_dataref["id"])
+
+        aircraft_path = _decode_dataref_data(path_value.get("data"))
+        if not aircraft_path:
+            raise XPlaneApiError("Current aircraft path is unavailable", payload=path_value)
+
+        livery = _decode_dataref_data(livery_value.get("data")) or None
+        return XPlaneAircraft(path=aircraft_path, livery=livery)
 
     @staticmethod
     def _parse_response(
@@ -273,3 +318,15 @@ async def wait_for_dataref_update(
 def _message_mentions_dataref(message: dict[str, Any], dataref_id: int | str) -> bool:
     data = message.get("data", {})
     return str(dataref_id) in data
+
+
+def _decode_dataref_data(value: Any) -> str:
+    if value in (None, ""):
+        return ""
+    if not isinstance(value, str):
+        raise XPlaneApiError("Expected base64 string for X-Plane dataref value")
+
+    try:
+        return base64.b64decode(value).decode("utf-8")
+    except Exception as exc:  # pragma: no cover - defensive path
+        raise XPlaneApiError("Failed to decode X-Plane dataref payload") from exc

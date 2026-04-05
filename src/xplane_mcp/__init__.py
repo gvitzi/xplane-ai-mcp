@@ -4,12 +4,14 @@ __version__ = "0.1.0"
 
 from .mcp_server import XPlaneMCPServer
 from .xplane_client import (
+    XPlaneAircraft,
     XPlaneApiError,
     XPlaneHttpClient,
     XPlaneWebSocketClient,
 )
 
 __all__ = [
+    "XPlaneAircraft",
     "XPlaneApiError",
     "XPlaneHttpClient",
     "XPlaneMCPServer",

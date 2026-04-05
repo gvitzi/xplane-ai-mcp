@@ -105,6 +105,13 @@ To attempt a new flight as well, provide a JSON file containing the `data` objec
 python -m xplane_mcp.poc --flight-json examples/flight.json
 ```
 
+To relocate the current aircraft to an airport by ICAO code, reuse the currently
+loaded aircraft and provide an airport plus ramp:
+
+```bash
+python -m xplane_mcp.poc --airport-icao EDDB --airport-ramp "GATE 01"
+```
+
 What the PoC does:
 
 - Checks `GET /api/capabilities`
@@ -113,6 +120,7 @@ What the PoC does:
 - Reads the current value over REST
 - Waits for one streamed WebSocket update for the same dataref
 - Optionally starts a new flight via `POST /api/v3/flight`
+- Can start a new flight at an ICAO airport by reading the current aircraft path from X-Plane and issuing a new `POST /flight`
 
 Current code separation:
 

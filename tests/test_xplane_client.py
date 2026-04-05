@@ -6,10 +6,12 @@ import pytest
 
 from xplane_mcp.mcp_server import XPlaneMCPServer
 from xplane_mcp.xplane_client import (
+    XPlaneAircraft,
     XPlaneApiError,
     XPlaneConfig,
     XPlaneHttpClient,
     XPlaneWebSocketClient,
+    _decode_dataref_data,
     _message_mentions_dataref,
 )
 
@@ -84,6 +86,78 @@ def test_start_flight_wraps_payload_in_data_envelope():
     assert payload == {"data": None}
 
 
+def test_get_current_aircraft_decodes_path_and_livery():
+    responses = {
+        "/api/v3/datarefs?filter%5Bname%5D=sim%2Faircraft%2Fview%2Facf_relative_path&fields=id%2Cname%2Cvalue_type":
+            {"data": [{"id": 101, "name": "sim/aircraft/view/acf_relative_path", "value_type": "data"}]},
+        "/api/v3/datarefs?filter%5Bname%5D=sim%2Faircraft%2Fview%2Facf_livery_path&fields=id%2Cname%2Cvalue_type":
+            {"data": [{"id": 102, "name": "sim/aircraft/view/acf_livery_path", "value_type": "data"}]},
+        "/api/v3/datarefs/101/value":
+            {"data": "QWlyY3JhZnQvTGFtaW5hciBSZXNlYXJjaC9Cb2VpbmcgNzM3LTgwMC9iNzM4LmFjZg=="},
+        "/api/v3/datarefs/102/value":
+            {"data": "b2xkX3N0eWxl"},
+    }
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        key = str(request.url).replace("http://example", "")
+        return httpx.Response(200, json=responses[key])
+
+    async def run() -> XPlaneAircraft:
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport, base_url="http://example/api/v3") as client:
+            api = XPlaneHttpClient(XPlaneConfig(), client=client)
+            return await api.get_current_aircraft()
+
+    aircraft = asyncio.run(run())
+    assert aircraft.path == "Aircraft/Laminar Research/Boeing 737-800/b738.acf"
+    assert aircraft.livery == "old_style"
+
+
+def test_move_plane_to_airport_uses_current_aircraft():
+    expected_body = {
+        "data": {
+            "ramp_start": {"airport_id": "EDDB", "ramp": "GATE 01"},
+            "aircraft": {
+                "path": "Aircraft/Laminar Research/Boeing 737-800/b738.acf",
+                "livery": "old_style",
+            },
+        }
+    }
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/v3/flight":
+            assert json.loads(request.content) == expected_body
+            return httpx.Response(200, content=b"")
+
+        if request.url.params.get("filter[name]") == "sim/aircraft/view/acf_relative_path":
+            return httpx.Response(
+                200,
+                json={"data": [{"id": 101, "name": "sim/aircraft/view/acf_relative_path", "value_type": "data"}]},
+            )
+        if request.url.params.get("filter[name]") == "sim/aircraft/view/acf_livery_path":
+            return httpx.Response(
+                200,
+                json={"data": [{"id": 102, "name": "sim/aircraft/view/acf_livery_path", "value_type": "data"}]},
+            )
+        if request.url.path == "/api/v3/datarefs/101/value":
+            return httpx.Response(
+                200,
+                json={"data": "QWlyY3JhZnQvTGFtaW5hciBSZXNlYXJjaC9Cb2VpbmcgNzM3LTgwMC9iNzM4LmFjZg=="},
+            )
+        if request.url.path == "/api/v3/datarefs/102/value":
+            return httpx.Response(200, json={"data": "b2xkX3N0eWxl"})
+        raise AssertionError(f"Unexpected request: {request.url}")
+
+    async def run() -> dict:
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport, base_url="http://example/api/v3") as client:
+            api = XPlaneHttpClient(XPlaneConfig(), client=client)
+            return await api.move_plane_to_airport("eddb", ramp="GATE 01")
+
+    payload = asyncio.run(run())
+    assert payload == {"data": None}
+
+
 def test_api_error_surfaces_xplane_error_details():
     async def handler(_: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -107,6 +181,10 @@ def test_message_mentions_dataref_matches_nested_id():
     message = {"type": "dataref_update_values", "data": {"77": 12.3}}
     assert _message_mentions_dataref(message, 77) is True
     assert _message_mentions_dataref(message, 99) is False
+
+
+def test_decode_dataref_data_handles_empty_value():
+    assert _decode_dataref_data("") == ""
 
 
 class FakeWebSocket:
@@ -194,3 +272,17 @@ def test_mcp_server_uses_http_and_websocket_clients():
     assert state.dataref["id"] == 10
     assert state.rest_value["data"]["value"] == 1.23
     assert state.websocket_value["data"]["10"] == 1.24
+
+
+def test_mcp_server_moves_plane_to_airport():
+    class FakeHttpClient:
+        async def move_plane_to_airport(self, airport_id, ramp="A1"):
+            return {"data": {"airport_id": airport_id, "ramp": ramp}}
+
+    async def run():
+        server = XPlaneMCPServer(FakeHttpClient())
+        return await server.move_plane_to_airport("EDDB", ramp="A2")
+
+    result = asyncio.run(run())
+    assert result["data"]["airport_id"] == "EDDB"
+    assert result["data"]["ramp"] == "A2"
