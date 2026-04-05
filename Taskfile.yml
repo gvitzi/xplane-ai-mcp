@@ -1,0 +1,20 @@
+version: "3"
+
+vars:
+  PYTEST_ARGS: '{{.PYTEST_ARGS | default ""}}'
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  install:
+    desc: Install package and dev dependencies (editable)
+    cmds:
+      - pip install -e ".[dev]"
+
+  test:
+    desc: Run pytest (pass extra args after --, e.g. task test -- -v -k smoke)
+    cmds:
+      - pytest {{.PYTEST_ARGS}} {{.CLI_ARGS}}

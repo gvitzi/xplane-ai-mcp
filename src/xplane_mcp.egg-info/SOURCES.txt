@@ -1,0 +1,13 @@
+README.md
+pyproject.toml
+src/xplane_mcp/__init__.py
+src/xplane_mcp/mcp_server.py
+src/xplane_mcp/poc.py
+src/xplane_mcp/xplane_client.py
+src/xplane_mcp.egg-info/PKG-INFO
+src/xplane_mcp.egg-info/SOURCES.txt
+src/xplane_mcp.egg-info/dependency_links.txt
+src/xplane_mcp.egg-info/requires.txt
+src/xplane_mcp.egg-info/top_level.txt
+tests/test_version.py
+tests/test_xplane_client.py
