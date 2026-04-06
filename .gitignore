@@ -3,18 +3,15 @@
 **/obj/
 artifacts/
 
+# Hidden directories (.name/) at any depth
+**/.*/
+
 # Python
 __pycache__/
 *.py[cod]
 *.egg-info/
 **/*.egg-info/
-.eggs/
-.pytest_cache/
-.venv/
 venv/
-
-# Local reference exports (generate with scripts/datarefs_txt_to_csv.py)
-.refs/
 
 # Editor / OS
 .DS_Store
