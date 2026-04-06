@@ -12,6 +12,9 @@ __pycache__/
 *.egg-info/
 **/*.egg-info/
 venv/
+# uv (https://github.com/astral-sh/uv)
+.uv-python/
+.uv-cache/
 
 # Editor / OS
 .DS_Store
