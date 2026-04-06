@@ -237,6 +237,18 @@ def mcp_list_available_plane_paths(session: McpStdioSession) -> set[str]:
     return paths
 
 
+def mcp_list_stock_aircraft_paths(session: McpStdioSession) -> set[str]:
+    """Hardcoded stock paths from ``list_stock_aircraft`` (no XPLANE_ROOT required)."""
+    raw = mcp_tool_json(session, "list_stock_aircraft", {})
+    if not raw:
+        return set()
+    paths: set[str] = set()
+    for item in raw:
+        if isinstance(item, dict) and (p := item.get("Path")):
+            paths.add(str(p))
+    return paths
+
+
 def mcp_choose_alternate_aircraft(session: McpStdioSession, preferred: list[str]) -> str:
     current_path, _ = mcp_get_current_aircraft(session)
     available = mcp_list_available_plane_paths(session)

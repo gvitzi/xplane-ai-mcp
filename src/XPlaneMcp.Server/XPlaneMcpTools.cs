@@ -70,6 +70,15 @@ public sealed class XPlaneMcpTools(XPlaneMcpService svc)
         return Task.FromResult(Json(planes.Select(p => new { p.Name, p.Path })));
     }
 
+    [McpServerTool, Description(
+        "Return a hardcoded list of X-Plane 12 Laminar stock aircraft paths (relative to the sim root) for flight API aircraft.path. " +
+        "No filesystem access and no XPLANE_ROOT required; verify against list_available_planes when an install path is configured.")]
+    public Task<string> ListStockAircraft()
+    {
+        var planes = StockAircraftCatalog.All;
+        return Task.FromResult(Json(planes.Select(p => new { p.Name, p.Path })));
+    }
+
     [McpServerTool, Description("Change the loaded aircraft model while keeping current lat/lon/heading (in-place swap via POST /flight).")]
     public async Task<string> ChangePlaneModel(
         string aircraft_path,
