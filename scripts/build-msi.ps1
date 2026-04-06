@@ -16,8 +16,16 @@ $msiOut = Join-Path $repoRoot 'artifacts/installer/xplaneMCP.msi'
 
 New-Item -ItemType Directory -Force -Path $staging | Out-Null
 
+$appIco = Join-Path $repoRoot 'resources/xplane_mcp_icon.ico'
+if (-not (Test-Path $appIco)) {
+    Write-Error "Missing application icon: $appIco"
+}
+
+Write-Host "Preparing installer UI bitmaps from resources/background.png..."
+python (Join-Path $repoRoot 'scripts/prepare_installer_assets.py')
+
 Write-Host "Publishing self-contained win-x64 -> $staging ..."
-dotnet publish $serverProj -c $Configuration -r win-x64 --self-contained true -o $staging
+dotnet publish $serverProj -c $Configuration -r win-x64 --self-contained true -o $staging /p:ApplicationIcon=$appIco
 
 $installerDir = Join-Path $repoRoot 'installer'
 Copy-Item (Join-Path $installerDir 'CopyCodexMcpSnippet.ps1') $staging -Force

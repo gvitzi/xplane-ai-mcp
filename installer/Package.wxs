@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <!--
+    Payload: dotnet publish (self-contained win-x64) -> artifacts/msi-staging (BindPath Payload).
+    Helpers: CopyCodexMcpSnippet.* + CodexSetup.txt copied into staging by scripts/build-msi.* .
+    UI: WixUI_InstallDir_xplane + CodexConfigDlg; WiX PNGs from prepare_installer_assets.py; icon from resources/xplane_mcp_icon.ico.
+  -->
+  <Package
+      Name="xplaneMCP"
+      Manufacturer="xplaneMCP"
+      Version="$(var.ProductVersion)"
+      UpgradeCode="A8D4C9E2-7B1F-4A3C-9D6E-8021F4A9B3C7"
+      Language="1033"
+      Scope="perMachine"
+      InstallerVersion="500">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of xplaneMCP is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="INSTALLFOLDER" Name="xplaneMCP" />
+    </StandardDirectory>
+
+    <Feature Id="MainFeature" Title="xplaneMCP" Description="X-Plane 12 MCP server (stdio)" Level="1">
+      <ComponentGroupRef Id="AppPayload" Primary="yes" />
+    </Feature>
+
+    <ComponentGroup Id="AppPayload" Directory="INSTALLFOLDER">
+      <Files Include="!(bindpath.Payload)\**">
+        <Exclude Files="*.pdb" />
+      </Files>
+    </ComponentGroup>
+
+    <Property Id="CODEX_CONFIG_SNIPPET" Value=" " />
+
+    <Binary Id="SetCodexSnippetBin" SourceFile="SetCodexSnippet.js" />
+    <CustomAction
+        Id="SetCodexSnippetDisplay"
+        BinaryRef="SetCodexSnippetBin"
+        JScriptCall="SetSnippet"
+        Execute="immediate"
+        Impersonate="yes"
+        Return="ignore" />
+
+    <Icon Id="XplaneMcpApp.ico" SourceFile="$(var.ResourcesIcoPath)" />
+    <Property Id="ARPPRODUCTICON" Value="XplaneMcpApp.ico" />
+
+    <CustomAction
+        Id="CopyCodexToClipboard"
+        Directory="INSTALLFOLDER"
+        ExeCommand="CopyCodexMcpSnippet.cmd"
+        Execute="immediate"
+        Impersonate="yes"
+        Return="ignore" />
+
+    <ui:WixUI Id="WixUI_InstallDir_xplane" InstallDirectory="INSTALLFOLDER" />
+  </Package>
+</Wix>

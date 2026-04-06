@@ -61,7 +61,9 @@ Prerequisites: **.NET SDK 9+** only; [WixToolset.Sdk](https://www.nuget.org/pack
 
 Release builds should be **digitally signed** (`signtool sign` on the MSI); signing is not automated in this repo.
 
-### Local MCP configuration (Cursor)
+### Local MCP configuration
+
+#### Cursor (JSON)
 
 Register a **stdio** MCP server. For [Cursor](https://docs.cursor.com/context/mcp), use project `.cursor/mcp.json` or **Settings → Tools & MCP**.
 
@@ -95,7 +97,32 @@ Register a **stdio** MCP server. For [Cursor](https://docs.cursor.com/context/mc
 }
 ```
 
-Use forward slashes in `cwd` on macOS/Linux. Optional **environment variables** (read by the server):
+Use forward slashes in `cwd` on macOS/Linux.
+
+#### Other agents (tab-style panels)
+
+GitHub does not render real tab controls in README files; the blocks below use **expandable panels** so you can open one agent at a time, similar to tabs. For **Codex**, merge the snippet into `%USERPROFILE%\.codex\config.toml`.
+
+<details open>
+<summary><strong>Codex</strong></summary>
+
+```toml
+[mcp_servers.xplaneMCP]
+command = 'E:/path/to/xplane-ai-mcp/artifacts/xplane-mcp/XPlaneMcp.Server.exe'
+args = []
+enabled = true
+```
+
+</details>
+
+<details>
+<summary><strong>Claude Desktop</strong></summary>
+
+Contribution needed here
+
+</details>
+
+Optional **environment variables** (read by the server):
 
 | Variable | Default | Purpose |
 |----------|---------|---------|

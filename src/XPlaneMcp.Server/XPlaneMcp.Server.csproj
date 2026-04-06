@@ -6,6 +6,8 @@
     <!-- Version / FileVersion inherited from repo Directory.Build.props -->
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Same icon as MSI (resources/xplane_mcp_icon.ico). -->
+    <ApplicationIcon>$(MSBuildThisFileDirectory)..\..\resources\xplane_mcp_icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

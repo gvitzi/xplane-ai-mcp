@@ -4,8 +4,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STAGING="$ROOT/artifacts/msi-staging"
 CONFIG="${1:-Release}"
+ICO="$ROOT/resources/xplane_mcp_icon.ico"
+test -f "$ICO" || { echo "Missing $ICO"; exit 1; }
+echo "Preparing installer UI bitmaps (Pillow: pip install pillow)..."
+python "$ROOT/scripts/prepare_installer_assets.py"
 echo "Publishing self-contained win-x64 -> $STAGING ..."
-dotnet publish "$ROOT/src/XPlaneMcp.Server/XPlaneMcp.Server.csproj" -c "$CONFIG" -r win-x64 --self-contained true -o "$STAGING"
+dotnet publish "$ROOT/src/XPlaneMcp.Server/XPlaneMcp.Server.csproj" -c "$CONFIG" -r win-x64 --self-contained true -o "$STAGING" /p:ApplicationIcon="$ICO"
 cp -f "$ROOT/installer/CopyCodexMcpSnippet.ps1" "$STAGING/"
 cp -f "$ROOT/installer/CopyCodexMcpSnippet.cmd" "$STAGING/"
 cp -f "$ROOT/installer/CodexSetup.txt" "$STAGING/"

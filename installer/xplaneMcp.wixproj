@@ -1,0 +1,29 @@
+<Project Sdk="WixToolset.Sdk/6.0.2">
+  <PropertyGroup>
+    <OutputType>Package</OutputType>
+    <Platforms>x64</Platforms>
+    <Platform>x64</Platform>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <OutputName>xplaneMCP</OutputName>
+    <!-- MSI output at repo root: artifacts\installer\ -->
+    <OutputPath>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\artifacts\installer\'))</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- Normalized path: installer\..\artifacts\msi-staging -->
+    <MsiStagingDir>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\artifacts\msi-staging'))</MsiStagingDir>
+    <InstallerAssetsDir>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\artifacts\installer-assets'))</InstallerAssetsDir>
+    <ResourcesIcoPath>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\resources\xplane_mcp_icon.ico'))</ResourcesIcoPath>
+    <ProductVersion>$(Version)</ProductVersion>
+    <DefineConstants>ProductVersion=$(ProductVersion);InstallerAssetsDir=$(InstallerAssetsDir);ResourcesIcoPath=$(ResourcesIcoPath)</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <BindPath Include="$(MsiStagingDir)" BindName="Payload" />
+    <BindVariable Include="WixUILicenseRtf=$(MSBuildThisFileDirectory)License.rtf" />
+    <BindVariable Include="WixUIDialogBmp=$(InstallerAssetsDir)\WixUIDialogBmp.png" />
+    <BindVariable Include="WixUIBannerBmp=$(InstallerAssetsDir)\WixUIBannerBmp.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="6.0.2" />
+  </ItemGroup>
+</Project>

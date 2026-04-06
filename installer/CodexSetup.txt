@@ -1,0 +1,29 @@
+xplaneMCP — Codex CLI (config.toml) setup
+========================================
+
+1) Open (or create) your Codex configuration file:
+   %USERPROFILE%\.codex\config.toml
+
+2) Add a server entry for xplaneMCP. Example (stdio):
+
+   [mcp_servers.xplaneMCP]
+   command = 'C:/full/path/to/XPlaneMcp.Server.exe'
+   args = []
+   enabled = true
+
+   Use single quotes around command as above, or double quotes with escaped backslashes.
+   The install folder contains XPlaneMcp.Server.exe; you can copy its full path from Explorer.
+
+3) Optional environment variables for X-Plane Web API (defaults work for local X-Plane):
+
+   [mcp_servers.xplaneMCP]
+   command = '...'
+   args = []
+   enabled = true
+   env = { XPLANE_HOST = "127.0.0.1", XPLANE_PORT = "49000" }
+
+4) Save the file and restart Codex if it is already running.
+
+Tip: After installation, the wizard shows the snippet in a multiline field (selectable)
+and a "Copy to Clipboard" button, using the path for your chosen install folder.
+Background and banner images come from resources/background.png when you build the MSI.

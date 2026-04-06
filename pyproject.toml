@@ -12,6 +12,7 @@ dependencies = []
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0",
+  "pillow>=10.0",
 ]
 
 [tool.setuptools]
