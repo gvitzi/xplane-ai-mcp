@@ -1,4 +1,4 @@
-# Build xplaneMCP.msi (WiX): self-contained win-x64 publish + MSI to artifacts/installer/.
+# Build xplane_mcp_installer.msi (WiX): self-contained win-x64 publish + MSI to artifacts/installer/.
 # Requires .NET SDK 9+ (restores WixToolset.Sdk via NuGet).
 #
 # Usage: powershell -File scripts/build-msi.ps1 [-Configuration Release]
@@ -12,7 +12,7 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $staging = Join-Path $repoRoot 'artifacts/msi-staging'
 $serverProj = Join-Path $repoRoot 'src/XPlaneMcp.Server/XPlaneMcp.Server.csproj'
 $wixProj = Join-Path $repoRoot 'installer/xplaneMcp.wixproj'
-$msiOut = Join-Path $repoRoot 'artifacts/installer/xplaneMCP.msi'
+$msiOut = Join-Path $repoRoot 'artifacts/installer/xplane_mcp_installer.msi'
 
 New-Item -ItemType Directory -Force -Path $staging | Out-Null
 

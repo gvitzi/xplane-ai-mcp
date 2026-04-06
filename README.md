@@ -1,29 +1,82 @@
-# xplane-ai-mcp
+<div align="center">
 
-An [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that lets local AI assistants (for example OpenAI Codex in the editor) read simulator state from **X-Plane 12** and send commands, using X-Plane’s built-in **local Web API** (REST + WebSocket).
+<img src="resources/xplane_mcp_icon.svg" alt="xplane-ai-mcp" width="96" height="96">
 
-## User Guide
+# X-Plane AI MCP
 
-### Requirements
+MCP server for X-Plane 12: drive X-Plane from a local AI assistant with natural language (text or voice) — aircraft, start location, weather, AI traffic, failures, and more.
 
-| Item | Requirements | Notes | 
-|------|--------------|-------|
-| AI Agent | **OpenAI Codex**, **Claude Code**, **Cursor**, or another editor or CLI that speaks MCP | A **local** MCP-capable client must run this server over **stdio** and expose its tools to the model. The executable alone is not a standalone chat UI. |
-| X-Plane | 12.1.1+ | **12.1.1+** for datarefs over HTTP/WebSocket; **12.4.0+** for `POST /flight` and `PATCH /flight` ([flight init API](https://developer.x-plane.com/article/x-plane-web-api/#Start_a_flight_v3)) |
+</div>
 
-### Quick Start
+**In short:** this program is an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that connects **X-Plane 12** to a **local AI assistant** (for example Cursor, OpenAI Codex, or Claude Code). The assistant can read simulator state and call X-Plane’s **official local Web API** so you can change weather, position, failures, and more by chatting — including voice if your AI app supports it.
 
-#### 1. Download and install the xplaneMCP
-TBD - link to executable
+> **Heads-up:** you need **two things** running: **X-Plane 12** with its web API enabled, and an **MCP-capable AI app** that starts this server for you. This repository is **not** a standalone chat or voice app by itself.
 
-#### 2. Confiugure your AI Agent
 
-Point your MCP client at `artifacts/xplane-mcp/XPlaneMcp.Server.exe` (Windows) or run with `dotnet /path/to/XPlaneMcp.Server.dll`. see following configuration examples below:
+[![Download Latest](https://img.shields.io/badge/Download-latest%20version-blue?style=for-the-badge)](
+https://github.com/gvitzi/xplane-mcp/releases/latest/download/xplane-mcp-installer.exe)
+
+![Latest Release](https://img.shields.io/github/v/release/gvitzi/xplane-mcp)
+![Downloads](https://img.shields.io/github/downloads/gvitzi/xplane-mcp/total)
+![License](https://img.shields.io/github/license/gvitzi/xplane-mcp)
+---
+
+## Contents
+
+- [Install and Configure](#install-and-connect-players)
+- [Example prompts](#example-prompts)
+- [Troubleshooting](#troubleshooting)
+- [Official X-Plane API documentation](#official-x-plane-api-documentation)
+- [MCP tools in this project](#mcp-tools-in-this-project)
+- [Developers and contributors](#developers-and-contributors)
+- [Disclaimer](#disclaimer)
+- [License](#license)
+
+---
+
+## Install and Configure
+
+### 1. What you need
+
+| What | You need | Why |
+|------|----------|-----|
+| **X-Plane** | **12.1.1+** | Datarefs and commands over HTTP/WebSocket need 12.1.1+. |
+| **X-Plane** | **12.4.0+** | Starting or updating a flight via API (`POST` / `PATCH` flight) needs 12.4.0+ (see [flight API](https://developer.x-plane.com/article/x-plane-web-api/#Start_a_flight_v3)). |
+| **AI app** | One that supports **MCP over stdio** | Examples: **Cursor**, **OpenAI Codex**, **Claude Code**, or another editor/CLI that can launch this server and expose its tools to the model. |
+
+### 2. Turn on X-Plane’s web server
+
+X-Plane must accept connections from this MCP server on your PC (usually **127.0.0.1** and port **8086**).
+
+1. Open **X-Plane 12**.
+2. Enable the **local web server** (REST + WebSocket) in X-Plane’s settings so tools can reach the sim.  
+3. Leave the default **host** and **port** unless you changed them; this MCP server uses **`XPLANE_HOST`** (default `127.0.0.1`) and **`XPLANE_PORT`** (default `8086`).
+
+**Authoritative steps and options** are in Laminar’s article: **[X-Plane local Web API](https://developer.x-plane.com/article/x-plane-web-api/)** — use that page if menus or defaults differ in your X-Plane version.
+
+### 3. Download this MCP server
+
+**Published builds:** *link to release assets will go here `.msi`, etc.*
+
+- Run the installer
+- Keep the installation path handy (default: `C:\Program Files\xplaneMCP`) - your AI app’s config will need to know where the MCP .exe is.
+
+### 4. Configure your AI app
+
+Your MCP client must **start this server** and use **stdio** (standard input/output) to talk to it — not a browser URL.
+
+**In your AI app’s MCP server settings**
+
+- Point **command** at the correct: by default **command:** `C:\Program Files\xplaneMCP\XPlaneMcp.exe`
+- Communication must use **standard output** (stdio), as usual for MCP servers.
+- Add (Optional) environment variable **`XPLANE_ROOT=C:\SteamLibrary\steamapps\common\X-Plane 12`** (Change path to your X-plane installation folder)
 
 <details>
 <summary><strong>Cursor</strong> (JSON)</summary>
 
-**Published executable:** save the JSON below as **`.cursor/mcp.json`** in this repo root (create the `.cursor` folder if needed), merging the `mcpServers` block with any servers you already use—or add the same server via **Cursor → Settings → Tools & MCP** (UI edits the same config at project or user scope).
+Save under **`.cursor/mcp.json`** in your project (or use **Cursor → Settings → Tools & MCP**), merging with any servers you already have.
+
+**Published executable:**
 
 ```json
 {
@@ -38,21 +91,6 @@ Point your MCP client at `artifacts/xplane-mcp/XPlaneMcp.Server.exe` (Windows) o
 }
 ```
 
-**Development (`dotnet run`):**
-
-```json
-{
-  "mcpServers": {
-    "xplane-ai-mcp": {
-      "command": "dotnet",
-      "args": ["run", "--project", "src/XPlaneMcp.Server/XPlaneMcp.Server.csproj", "-c", "Release"],
-      "cwd": "E:\\path\\to\\xplane-ai-mcp",
-      "env": {}
-    }
-  }
-}
-```
-
 Use forward slashes in `cwd` on macOS/Linux.
 
 </details>
@@ -60,7 +98,7 @@ Use forward slashes in `cwd` on macOS/Linux.
 <details>
 <summary><strong>Codex</strong> (TOML)</summary>
 
-**Where to put it:** edit Codex’s user config file—**`%USERPROFILE%\.codex\config.toml`** on Windows or **`~/.codex/config.toml`** on macOS/Linux. Create the `.codex` folder or `config.toml` if it does not exist yet (Codex normally creates them on first setup). Paste the table below into that file, or merge it with other **`[mcp_servers.*]`** blocks you already have; each server must use a **unique** table name (here `xplaneMCP`).
+Edit **`%USERPROFILE%\.codex\config.toml`**. Each `[mcp_servers.*]` name must be unique.
 
 **Published executable:**
 
@@ -71,70 +109,106 @@ args = []
 enabled = true
 ```
 
-**Development (`dotnet run` from repo root):** use the same `[mcp_servers.xplaneMCP]` key or pick another name; point `command` at `dotnet` and pass the project via `args` (adjust the drive/path to your clone).
-
-```toml
-[mcp_servers.xplaneMCP]
-command = 'dotnet'
-args = [
-  'run',
-  '--project',
-  'E:/path/to/xplane-ai-mcp/src/XPlaneMcp.Server/XPlaneMcp.Server.csproj',
-  '-c',
-  'Release',
-]
-enabled = true
-```
-
 </details>
 
 <details>
-<summary><strong>Claude Desktop</strong></summary>
+<summary><strong>Claude Desktop</strong> and others</summary>
 
-Contribution needed here
+Community examples for **Claude Desktop** MCP config are welcome — open a PR or issue with a tested snippet.
+
+Any client that supports **stdio** MCP and can spawn an executable should work if **command**, **args**, and **cwd** are set correctly.
 
 </details>
 
-When configuring through UI:
-* make sure the MCP configuration points to the correct installation directory and executable of the mcpServer
-* communincation protocl should use stdout (or Standard Output)
-* optionally add the XPLANE_ROOT="<your xplane installation directory>" as an environment varaible. this is only needed to ask AI Agent to change model to a 3rd-party aircraft.
+### 5. Confirm it works
 
-Optional **environment variables** (read by the server):
+With X-Plane running and the web API enabled, ask your assistant something simple, for example: *“What is my current latitude and longitude in the sim?”* If the MCP server and X-Plane are reachable, the model should return values from the simulator.
+
+---
+
+## Example prompts
+
+Plain-language ideas you can paste into your assistant; it should translate them into the right MCP tools and X-Plane API calls. Each prompt is in its own block so you can copy one at a time.
+
+```
+Start a new flight in a Cessna 172 on the ground in a small airfield in France.
+```
+
+```
+Put me in a 737 on the ground at EGLL, at night, with low IFR weather.
+```
+
+```
+Let me train gusty crosswind landings in a Baron B58 on a 3 mile final to EDDB.
+```
+
+```
+Start on runway 07 at EDAZ, in a C172, and make the engine fail at 600 ft AGL.
+```
+
+```
+Put me in the air at 5000 ft near an exotic island, with few clouds and calm winds.
+```
+
+---
+
+## Troubleshooting
+
+| Problem | What to try |
+|---------|-------------|
+| Assistant says it cannot reach X-Plane | Confirm X-Plane is running, the **web server** is enabled, and host/port match **`XPLANE_HOST`** / **`XPLANE_PORT`**. See [X-Plane local Web API](https://developer.x-plane.com/article/x-plane-web-api/). |
+| Firewall prompts | Allow **localhost** traffic for X-Plane and this MCP process if your OS asks. |
+| Wrong or empty aircraft lists | Set **`XPLANE_ROOT`** to your real X-Plane install folder **in your AI agent’s MCP configuration** (the same place you set `command` and `cwd`—for example Cursor’s **`env`** block in **`.cursor/mcp.json`**). Restart or reload the MCP server after saving so the new variable is applied. |
+| Flight start fails | You may need **X-Plane 12.4.0+** for `POST /api/v3/flight`. Check the [flight section](https://developer.x-plane.com/article/x-plane-web-api/#Start_a_flight_v3) of the Web API article. |
+| MCP server never starts | Check **command** path, **cwd**, and that **stdio** is selected (not HTTP) in the client. |
+
+---
+
+## Official X-Plane API documentation
+
+This MCP server is a **client** of X-Plane’s documented interfaces. For correct URLs, payloads, and behavior, rely on Laminar’s developer docs:
+
+| Topic | Link |
+|-------|------|
+| **Web API overview** (enable server, REST, WebSocket) | [X-Plane local Web API](https://developer.x-plane.com/article/x-plane-web-api/) |
+| **Start / update flight** (`POST` / `PATCH` flight, v3) | [Flight Initialization API](https://developer.x-plane.com/article/flight-initialization-api/) and [Web API — Start a flight](https://developer.x-plane.com/article/x-plane-web-api/#Start_a_flight_v3) |
+| **Datarefs and commands** | Described in the Web API article (listing, reading, writing, subscribing) |
+
+If a tool in this repo disagrees with the official documentation, **trust X-Plane’s documentation** and please open an issue here.
+
+---
+
+## MCP tools in this project
+
+A concise table of tool names and roles lives in **[`MCP_API_OVERVIEW.md`](MCP_API_OVERVIEW.md)**. Full parameter schemas come from the running MCP server.
+
+---
+
+## Developers and contributors
+
+### Advanced Configuration
+
+**Optional environment variables** (this MCP server):
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `XPLANE_HOST` | `127.0.0.1` | Web API host |
 | `XPLANE_PORT` | `8086` | Web API port |
 | `XPLANE_TIMEOUT` | `5` | HTTP timeout (seconds) |
-| `XPLANE_ROOT` | *(unset)* | X-Plane install root; required for `list_available_planes` / aircraft paths |
+| `XPLANE_ROOT` | *(unset)* | X-Plane install root; configure via **your MCP client** (e.g. Cursor `env` in `mcp.json`). Used for `list_available_planes`, liveries, and aircraft paths |
 
-### Example prompts
+### Build and packaging
 
-These assume the assistant can call your X-Plane MCP tools (wording can be adapted):
-
-- “What are my current latitude, longitude, and indicated airspeed from the simulator?”
-- “Start a new flight at **KPDX** ramp **A1** with the current aircraft (or tell me if the API needs an explicit aircraft path).”
-- “Start a flight with **`start_flight`**: pass **`flight_json`** as the inner `data` object from the [Flight Initialization API](https://developer.x-plane.com/article/flight-initialization-api/) — include **`aircraft`** and exactly one of **`ramp_start`**, **`runway_start`**, **`lle_ground_start`**, **`lle_air_start`**, or **`boat_start`** as top-level keys.”
-- “Relocate with **`start_flight`** (POST) using **`lle_ground_start`** or **`lle_air_start`** in `flight_json` exactly as in the [Flight Initialization API](https://developer.x-plane.com/article/flight-initialization-api/) (same field names as X-Plane). **`update_flight`** (`PATCH /flight`) cannot change start location — X-Plane returns *invalid to specify a start*.”
-- “Resolve the dataref for outside air temperature, read its value, and report it with units.”
-- “For a training scenario, trigger a **complete failure on engine 1** via the failure datarefs, then summarize how I would clear it in X-Plane.”
-
----
-
-Official X-Plane API reference: [X-Plane local Web API](https://developer.x-plane.com/article/x-plane-web-api/#The_web_server).
-
-# Developers
-
-## Build
-**Release publish and MSI (PowerShell, repo root):** run both scripts to refresh the publish folder and the installer:
+**Release publish and MSI (PowerShell, repo root):**
 
 ```powershell
 .\scripts\publish-server.ps1 -Configuration Release
 .\scripts\build-msi.ps1 -Configuration Release
 ```
 
-## Architecture
+Published output defaults to **`artifacts/xplane-mcp`**.
+
+### Architecture
 
 ```mermaid
 flowchart LR
@@ -145,73 +219,62 @@ flowchart LR
   WS --> XP
 ```
 
-- **REST**: list/find datarefs and commands by name, read values, `PATCH` values, `POST` command activation, `POST`/`PATCH` flight.
-- **WebSocket**: subscribe to dataref updates (e.g. for `get_state` with `use_websocket`).
+- **REST:** list/find datarefs and commands, read and patch values, activate commands, start/update flight.
+- **WebSocket:** subscribe to dataref updates (e.g. for `get_state` with `use_websocket`).
 
 Dataref and command **IDs are session-local**; resolve names via the list endpoints after each X-Plane start.
 
-## Repository layout
 
-```text
-src/XPlaneMcp.sln          # .NET solution
-src/XPlaneMcp.Server/      # MCP stdio server + X-Plane clients + tools
-tests/                     # pytest: MCP stdio harness (`mcp_stdio.py`) + integration tests
-scripts/publish-server.*   # publish to artifacts/xplane-mcp
-scripts/build-msi.*        # WiX: artifacts/installer/xplaneMCP.msi
-installer/                 # xplaneMcp.wixproj + Package.wxs
-Directory.Build.props      # shared Version for app + MSI ProductVersion
-pyproject.toml             # pip install -e ".[dev]", pytest config
-Makefile / make.ps1        # .NET + integration pytest + msi (optional convenience)
-```
-
-Optional local **`.refs/`** (not in git): CSV and index snapshots from X-Plane’s `DataRefs.txt` are gitignored. Generate them with `python scripts/datarefs_txt_to_csv.py --help`.
-
-## Development plan (status)
-
-- **Phase 0 — PoC**: superseded for **connectivity** by the C# server.
-- **Phase 1 — Client library**: implemented in C# (`XPlaneRestClient`, `XPlaneWebSocketSession`).
-- **Phase 2 — MCP surface**: **stdio MCP tools** implemented in [`XPlaneMcpTools`](src/XPlaneMcp.Server/XPlaneMcpTools.cs) (capabilities, flight, datarefs, commands, failures, `get_state`, etc.).
-- **Phase 3 — Quality**: `dotnet test` + pytest; integration tests marked `integration`.
-
-## Tech stack
+### Tech stack
 
 | Area | Choice |
 |------|--------|
 | MCP server | C# / **net9.0**, [ModelContextProtocol](https://www.nuget.org/packages/ModelContextProtocol) |
 | Integration tests | Python 3.11+ pytest spawns [`XPlaneMcp.Server`](src/XPlaneMcp.Server/) (see `tests/mcp_stdio.py`) |
 | Tests | **xUnit** (.NET), **pytest** (integration + smoke) |
-| Automation | **GNU Make** ([`Makefile`](Makefile)) or **[`make.ps1`](make.ps1)** at repo root |
 | Commits | [Conventional Commits](https://www.conventionalcommits.org/) (see below) |
 
-## Integration tests (repo root)
+### Integration tests (repo root)
 
-The default `pytest` run excludes `integration`-marked tests (`addopts` in [`pyproject.toml`](pyproject.toml)). Live simulator tests change the running X-Plane session; run them only when X-Plane is up with the Web API enabled.
+Default `pytest` excludes `integration`-marked tests (`addopts` in [`pyproject.toml`](pyproject.toml)). Live tests change the running X-Plane session; run only when X-Plane is up with the Web API enabled.
 
 ```bash
 pytest -m integration --xplane-root="E:\SteamLibrary\steamapps\common\X-Plane 12"
-# or: make test-integration PYTEST_ARGS='--xplane-root="E:\path\to\X-Plane 12"'
+# optional helper: .\make.ps1 test-integration -- --xplane-root="E:\path\to\X-Plane 12"
 ```
 
-Build the MCP server first (`dotnet build -c Release` or `make install` / `.\make.ps1 install`) so `tests/conftest.py` can find `XPlaneMcp.Server.exe` under `src/XPlaneMcp.Server/bin/...`, or pass **`--mcp-server=PATH`** to the executable.
+Build the MCP server first (`dotnet build -c Release` or `.\make.ps1 install` if you use the repo script) so `tests/conftest.py` can find `XPlaneMcp.Server.exe` under `src/XPlaneMcp.Server/bin/...`, or pass **`--mcp-server=PATH`**.
 
-Pytest CLI options are registered from [`tests/conftest.py`](tests/conftest.py):
+Pytest options are registered from [`tests/conftest.py`](tests/conftest.py):
 
 - `--xplane-root` (required for integration): path to your X-Plane installation (sets `XPLANE_ROOT` for the server process)
 - `--mcp-server` (optional): path to `XPlaneMcp.Server.exe` (or native binary) if auto-detection fails
 - `--xplane-host`, `--xplane-port`, `--xplane-timeout`: Web API connection tuning
 - `--xplane-test-airport`, `--xplane-test-ramp`: start-flight test (defaults: KPDX, A1)
 - `--xplane-weather-region-index`: array index for `sim/weather/region/*` in the sea-level pressure test, or `-1` (default) to auto-detect scalar vs index `0`
-- `--xplane-keep-cloud-layer`: for regional cloud integration tests (low broken layer, clear sky), skip restoring written cloud datarefs so you can inspect the sim (see test docstrings for weather UI and timing)
+- `--xplane-keep-cloud-layer`: for regional cloud integration tests, skip restoring written cloud datarefs so you can inspect the sim (see test docstrings for weather UI and timing)
 
-**Cloud / clear-sky test visuals:** those tests normally **revert** regional cloud datarefs when they finish. Use `--xplane-keep-cloud-layer`, switch X-Plane weather to **manual / custom** (not live METAR), turn on **volumetric clouds** (for clouds), and wait up to about **60 seconds** for the sim to refresh drawn clouds.
+**Cloud / clear-sky test visuals:** those tests normally **revert** regional cloud datarefs when they finish. Use `--xplane-keep-cloud-layer`, switch X-Plane weather to **manual / custom** (not live METAR), turn on **volumetric clouds** (for clouds), and allow **up to a few minutes** for the sim to refresh drawn clouds.
 
-## Conventional Commits
+### Conventional Commits
 
 Use prefixes such as `feat:`, `fix:`, `docs:`, `test:`, `chore:`, `refactor:` with an optional scope, for example:
 
 - `feat(mcp): add dataref read tool`
 - `fix(client): handle 403 when incoming traffic disabled`
-- `docs: added more prompt examples in README`
+- `docs: clarify README install steps`
+
+Pull requests and small, focused changes are welcome. For larger features, open an issue first so we can align on scope.
+
+---
+
+## Disclaimer
+
+**Use at your own risk.** This software can change simulator state (flight, weather, failures, etc.). The authors are **not responsible** for any damage, loss, or inappropriate use. This project is **not affiliated with or endorsed by Laminar Research**.
+
+Portions of this repository were developed with assistance from **AI coding tools**.
+
+---
 
 ## License
 

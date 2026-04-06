@@ -4,7 +4,7 @@
     <Platforms>x64</Platforms>
     <Platform>x64</Platform>
     <InstallerPlatform>x64</InstallerPlatform>
-    <OutputName>xplaneMCP</OutputName>
+    <OutputName>xplane_mcp_installer</OutputName>
     <!-- MSI output at repo root: artifacts\installer\ -->
     <OutputPath>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\artifacts\installer\'))</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>

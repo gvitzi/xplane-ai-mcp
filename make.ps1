@@ -44,7 +44,7 @@ switch ($target) {
         Write-Host '  .\make.ps1 test-integration     pytest -m integration (flags after --)'
         Write-Host '  .\make.ps1 run / mcp            dotnet run MCP server'
         Write-Host '  .\make.ps1 publish              scripts/publish-server.ps1'
-        Write-Host '  .\make.ps1 msi                  WiX MSI -> artifacts/installer/xplaneMCP.msi'
+        Write-Host '  .\make.ps1 msi                  WiX MSI -> artifacts/installer/xplane_mcp_installer.msi'
     }
     'install' {
         dotnet restore $sln

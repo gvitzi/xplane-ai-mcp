@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build xplaneMCP.msi (WiX) on Windows via Git Bash / WSL with dotnet on PATH.
+# Build xplane_mcp_installer.msi (WiX) on Windows via Git Bash / WSL with dotnet on PATH.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STAGING="$ROOT/artifacts/msi-staging"
@@ -15,4 +15,4 @@ cp -f "$ROOT/installer/CopyCodexMcpSnippet.cmd" "$STAGING/"
 cp -f "$ROOT/installer/CodexSetup.txt" "$STAGING/"
 echo "Building WiX MSI..."
 dotnet build "$ROOT/installer/xplaneMcp.wixproj" -c "$CONFIG"
-echo "MSI: $ROOT/artifacts/installer/xplaneMCP.msi"
+echo "MSI: $ROOT/artifacts/installer/xplane_mcp_installer.msi"
