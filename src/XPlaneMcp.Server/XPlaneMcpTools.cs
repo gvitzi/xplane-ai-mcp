@@ -86,11 +86,11 @@ public sealed class XPlaneMcpTools(XPlaneMcpService svc)
         }, cancellationToken);
 
     [McpServerTool, Description(
-        "PATCH /api/v3/flight — merge partial flight `data` into the current flight. " +
+        "PATCH /api/v3/flight — merge partial flight `data` into the current flight (same envelope as start_flight: inner `data` only in flight_json). " +
         "X-Plane rejects any start-location keys on PATCH (lle_ground_start, lle_air_start, runway_start, ramp_start, boat_start): " +
         "\"invalid to specify a start\". Relocate with start_flight (POST) using `aircraft` plus exactly one of lle_ground_start or lle_air_start (or runway/ramp/boat). " +
         "PATCH is for other init fields (e.g. weather, time, weight) where supported.")]
-    public Task<string> PatchFlight(
+    public Task<string> UpdateFlight(
         [Description("Partial inner `data` JSON — do not include start keys (lle_*, runway_start, ramp_start, boat_start); use start_flight to relocate")] string flight_json,
         CancellationToken cancellationToken = default) =>
         RunToolAsync(async () =>

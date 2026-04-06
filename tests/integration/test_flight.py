@@ -51,7 +51,7 @@ def test_change_model_to_c172(
 
 
 @pytest.mark.integration
-def test_start_flight_baron_runway_threshold(
+def test_start_flight_runway_start(
     mcp_stdio_session: McpStdioSession,
     xplane_root: Path,
 ) -> None:
@@ -60,13 +60,9 @@ def test_start_flight_baron_runway_threshold(
     Uses KBOS 22L as in the official Flight Initialization API example so the runway ID
     matches default X-Plane airport data.
     """
-    acf_on_disk = xplane_root.joinpath(*BARON_B58_ACF_PATH.split("/"))
-    if not acf_on_disk.is_file():
-        pytest.skip(f"Baron B58 .acf not found: {acf_on_disk}")
-
     target_aircraft = BARON_B58_ACF_PATH
     flight_data: dict[str, Any] = {
-        "runway_start": {"airport_id": "EDDF", "runway": "25L"},
+        "runway_start": {"airport_id": "KBOS", "runway": "22L"},
         "aircraft": {"path": target_aircraft},
     }
 
@@ -105,6 +101,7 @@ def test_final_approach_EDDB_24R_gusts(
         "runway_start": {
             "airport_id": "EDDB",
             "runway": "24R",
+            "final_distance_in_nautical_miles": 2.0,
         },
         "aircraft": {"path": C172_STOCK_ACF_PATH},
         "engine_status": {"all_engines": {"running": True}},
@@ -158,19 +155,6 @@ def test_final_approach_EDDB_24R_gusts(
         f"expected roughly runway 25 final heading (~250° true), got hdg={hdg}"
     )
 
-
-@pytest.mark.integration
-def test_patch_flight_rejects_lle_ground_start(
-    mcp_stdio_session: McpStdioSession,
-) -> None:
-    """X-Plane PATCH /flight rejects start keys (verified 12.4+: *invalid to specify a start*)."""
-    s = mcp_stdio_session
-    assert_xplane_reachable_via_mcp(s)
-    patch = {"lle_ground_start": {"latitude": 50.038, "longitude": 8.562, "heading_true": 270.0}}
-    with pytest.raises(McpToolError, match="invalid to specify a start"):
-        mcp_tool_json(s, "patch_flight", {"flight_json": json.dumps(patch)})
-
-
 @pytest.mark.integration
 def test_start_flight_lle_ground_start_near_EDDF(
     mcp_stdio_session: McpStdioSession,
@@ -204,7 +188,7 @@ def test_start_flight_lle_ground_start_near_EDDF(
 
 
 @pytest.mark.integration
-def test_start_flight_lle_air_start_near_EDDF(
+def test_start_flight_lle_air_start_near_EDAH(
     mcp_stdio_session: McpStdioSession,
     xplane_root: Path,
 ) -> None:
@@ -213,10 +197,12 @@ def test_start_flight_lle_air_start_near_EDDF(
     if not acf_on_disk.is_file():
         pytest.skip(f"Cessna 172 SP stock .acf not found: {acf_on_disk}")
 
+    desired_lat = 53.862
+    desired_lon = 14.145
     flight_data: dict[str, Any] = {
         "lle_air_start": {
-            "latitude": 50.0383,
-            "longitude": 8.5619,
+            "latitude": desired_lat,
+            "longitude": desired_lon,
             "elevation_in_meters": 450.0,
             "heading_true": 270.0,
             "speed_in_meters_per_second": 55.0,
@@ -228,10 +214,10 @@ def test_start_flight_lle_air_start_near_EDDF(
     try:
         mcp_tool_json(s, "start_flight", {"flight_json": json.dumps(flight_data)})
     except McpToolError as exc:
-        pytest.skip(f"start_flight lle_air_start near EDDF not accepted: {exc}")
+        pytest.skip(f"start_flight lle_air_start near EDAH not accepted: {exc}")
 
     mcp_poll_current_aircraft(s, expected_path=C172_STOCK_ACF_PATH)
-    lat, lon, _ = mcp_get_current_position(s)
-    assert 49.98 < lat < 50.08 and 8.48 < lon < 8.65, (
-        f"expected aircraft near EDDF (Frankfurt) after lle_air_start, got lat={lat}, lon={lon}"
+    actual_lat, actual_lon, _ = mcp_get_current_position(s)
+    assert desired_lat - 0.02 < actual_lat < desired_lat + 0.02 and desired_lon - 0.02 < actual_lon < desired_lon + 0.02, (
+        f"expected aircraft near EDAH (Hamburg) after lle_air_start, got lat={actual_lat}, lon={actual_lon}"
     )

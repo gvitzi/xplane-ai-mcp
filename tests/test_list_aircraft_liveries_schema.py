@@ -1,43 +1,41 @@
-"""Contract for ``list_aircraft_liveries`` structuredContent (runs in default pytest; no MCP/X-Plane)."""
+"""``list_aircraft_liveries``: fetch structuredContent from the running MCP server (integration only)."""
 
 from __future__ import annotations
 
-from typing import Any
+import pytest
+
+from integration_constants import C172_STOCK_ACF_PATH
+from mcp_integration import assert_xplane_reachable_via_mcp, mcp_tool_json
+from mcp_stdio import McpStdioSession
 
 
-def _assert_liveries_payload(raw: dict[str, Any]) -> None:
+@pytest.mark.integration
+def test_list_aircraft_liveries_from_mcp_server(
+    mcp_stdio_session: McpStdioSession,
+) -> None:
+    """Calls ``list_aircraft_liveries`` over stdio; asserts aircraft + nested liveries from XPLANE_ROOT."""
+    assert_xplane_reachable_via_mcp(mcp_stdio_session)
+    raw = mcp_tool_json(mcp_stdio_session, "list_aircraft_liveries", {})
+    assert isinstance(raw, dict)
+    assert "aircraft" in raw
     ac_list = raw["aircraft"]
     assert isinstance(ac_list, list)
+    assert ac_list, "expected at least one .acf under XPLANE_ROOT/Aircraft"
+
     for ac in ac_list:
         assert isinstance(ac, dict)
-        assert isinstance(ac.get("name"), str)
-        assert isinstance(ac.get("path"), str)
-        livs = ac["liveries"]
-        assert isinstance(livs, list)
-        for liv in livs:
+        assert "name" in ac and "path" in ac and "liveries" in ac
+        assert isinstance(ac["liveries"], list)
+        for liv in ac["liveries"]:
             assert isinstance(liv, dict)
-            assert isinstance(liv.get("name"), str)
-            assert isinstance(liv.get("path"), str)
+            assert "name" in liv and "path" in liv
 
-
-def test_list_aircraft_liveries_structured_shape_matches_server_contract() -> None:
-    """Mirrors XPlaneMcpTools.ListAircraftLiveries / MCP structuredContent."""
-    sample: dict[str, Any] = {
-        "aircraft": [
-            {
-                "name": "Cessna 172 SP",
-                "path": "Aircraft/Laminar Research/Cessna 172 SP/Cessna_172SP.acf",
-                "liveries": [
-                    {
-                        "name": "Example Livery",
-                        "path": "Aircraft/Laminar Research/Cessna 172 SP/liveries/Example Livery",
-                    }
-                ],
-            }
-        ]
-    }
-    _assert_liveries_payload(sample)
-
-
-def test_list_aircraft_liveries_empty_install_is_valid() -> None:
-    _assert_liveries_payload({"aircraft": []})
+    filtered = mcp_tool_json(
+        mcp_stdio_session,
+        "list_aircraft_liveries",
+        {"aircraft_path": C172_STOCK_ACF_PATH},
+    )
+    one = filtered["aircraft"]
+    assert isinstance(one, list) and len(one) == 1
+    assert one[0]["path"].replace("\\", "/") == C172_STOCK_ACF_PATH
+    assert isinstance(one[0]["liveries"], list)

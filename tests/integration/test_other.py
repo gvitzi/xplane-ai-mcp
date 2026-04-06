@@ -68,37 +68,6 @@ def test_list_available_planes_reads_real_installation(
 
 
 @pytest.mark.integration
-def test_list_aircraft_liveries_structured_result(
-    mcp_stdio_session: McpStdioSession,
-) -> None:
-    """``list_aircraft_liveries`` returns structuredContent: aircraft with nested liveries[]."""
-    raw = mcp_tool_json(mcp_stdio_session, "list_aircraft_liveries", {})
-    assert isinstance(raw, dict)
-    assert "aircraft" in raw
-    ac_list = raw["aircraft"]
-    assert isinstance(ac_list, list)
-    assert ac_list, "expected at least one .acf under XPLANE_ROOT/Aircraft"
-
-    for ac in ac_list:
-        assert isinstance(ac, dict)
-        assert "name" in ac and "path" in ac and "liveries" in ac
-        assert isinstance(ac["liveries"], list)
-        for liv in ac["liveries"]:
-            assert isinstance(liv, dict)
-            assert "name" in liv and "path" in liv
-
-    filtered = mcp_tool_json(
-        mcp_stdio_session,
-        "list_aircraft_liveries",
-        {"aircraft_path": C172_STOCK_ACF_PATH},
-    )
-    one = filtered["aircraft"]
-    assert isinstance(one, list) and len(one) == 1
-    assert one[0]["path"].replace("\\", "/") == C172_STOCK_ACF_PATH
-    assert isinstance(one[0]["liveries"], list)
-
-
-@pytest.mark.integration
 def test_list_stock_aircraft_hardcoded_paths(mcp_stdio_session: McpStdioSession) -> None:
     """Stock catalog is static JSON; should include paths used by other integration tests."""
     stock = mcp_list_stock_aircraft_paths(mcp_stdio_session)

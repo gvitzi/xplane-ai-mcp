@@ -33,6 +33,16 @@ def mcp_find_dataref(session: McpStdioSession, name: str) -> dict[str, Any]:
         raise
 
 
+def mcp_try_find_dataref(session: McpStdioSession, name: str) -> dict[str, Any] | None:
+    """Like ``mcp_find_dataref`` but returns ``None`` if X-Plane does not expose this dataref."""
+    try:
+        return mcp_tool_json(session, "find_dataref", {"name": name})
+    except McpToolError as exc:
+        if "not found" in str(exc).lower() or "404" in str(exc):
+            return None
+        raise
+
+
 def mcp_get_dataref_value(
     session: McpStdioSession,
     dataref_id: str,
@@ -90,6 +100,19 @@ def mcp_read_scalar_dataref(session: McpStdioSession, name: str) -> tuple[str, A
     return dr_id, payload["data"]
 
 
+def mcp_try_read_scalar_dataref(session: McpStdioSession, name: str) -> tuple[str, Any] | None:
+    """Resolve and read a scalar dataref, or ``None`` if missing or unreadable."""
+    meta = mcp_try_find_dataref(session, name)
+    if meta is None:
+        return None
+    dr_id = str(meta["id"])
+    try:
+        payload = mcp_get_dataref_value(session, dr_id)
+    except McpToolError:
+        return None
+    return dr_id, payload["data"]
+
+
 def mcp_read_region_cloud_layer_value(
     session: McpStdioSession,
     dr_id: str,
@@ -137,22 +160,24 @@ def mcp_apply_regional_weather_draw_primers(session: McpStdioSession) -> Regiona
     override_clouds_orig: Any = None
     change_mode_id: str | None = None
     change_mode_orig: Any = None
-    try:
-        override_clouds_id, override_clouds_orig = mcp_read_scalar_dataref(
-            session,
-            "sim/operation/override/override_clouds",
-        )
-        mcp_set_dataref_value(session, override_clouds_id, 1)
-    except McpToolError:
-        override_clouds_id = None
-    try:
-        change_mode_id, change_mode_orig = mcp_read_scalar_dataref(
-            session,
-            "sim/weather/region/change_mode",
-        )
-        mcp_set_dataref_value(session, change_mode_id, 3)
-    except McpToolError:
-        change_mode_id = None
+    oc = mcp_try_read_scalar_dataref(session, "sim/operation/override/override_clouds")
+    if oc is not None:
+        oid, oval = oc
+        try:
+            mcp_set_dataref_value(session, oid, 1)
+            override_clouds_id = oid
+            override_clouds_orig = oval
+        except McpToolError:
+            pass
+    cm = mcp_try_read_scalar_dataref(session, "sim/weather/region/change_mode")
+    if cm is not None:
+        cid, cval = cm
+        try:
+            mcp_set_dataref_value(session, cid, 3)
+            change_mode_id = cid
+            change_mode_orig = cval
+        except McpToolError:
+            pass
     return override_clouds_id, override_clouds_orig, change_mode_id, change_mode_orig
 
 

@@ -111,6 +111,23 @@ public sealed class XPlaneRestClientTests
     }
 
     [Fact]
+    public async Task PatchFlightAsync_sends_patch_with_data_envelope()
+    {
+        using var client = CreateClient(new StubHandler(req =>
+        {
+            Assert.Equal(HttpMethod.Patch, req.Method);
+            Assert.Equal("/api/v3/flight", req.RequestUri!.AbsolutePath);
+            var body = req.Content!.ReadAsStringAsync().Result;
+            Assert.Equal("""{"data":{"time":{"zulu":43200}}}""", body);
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("", Encoding.UTF8, "application/json") };
+        }));
+
+        using var partial = JsonDocument.Parse("""{"time":{"zulu":43200}}""");
+        var payload = await client.PatchFlightAsync(partial.RootElement);
+        Assert.True(payload.TryGetProperty("data", out var d) && d.ValueKind == JsonValueKind.Null);
+    }
+
+    [Fact]
     public async Task ParseResponse_maps_error_json_to_exception()
     {
         using var resp = new HttpResponseMessage(HttpStatusCode.BadRequest)

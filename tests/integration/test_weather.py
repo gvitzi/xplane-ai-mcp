@@ -35,6 +35,28 @@ def _kts_to_ms(kts: float) -> float:
     return kts * _KT_TO_MS
 
 
+def _coerce_region_indexed_float(payload: dict[str, Any], index: int) -> float:
+    raw = payload["data"]
+    if isinstance(raw, list):
+        if len(raw) > index:
+            return float(raw[index])
+        if len(raw) == 1:
+            return float(raw[0])
+        raise AssertionError(f"dataref array len={len(raw)} too short for index {index}")
+    return float(raw)
+
+
+def _cloud_readback_matches_target(
+    got: float,
+    dataref_name: str,
+    target: float,
+    msl_altitude_datarefs: frozenset[str],
+) -> bool:
+    if dataref_name in msl_altitude_datarefs:
+        return bool(got == pytest.approx(target, rel=0.5, abs=800.0))
+    return bool(got == pytest.approx(target, rel=0.65, abs=0.55))
+
+
 def _set_regional_ground_wind(
     s: McpStdioSession,
     *,
@@ -362,6 +384,7 @@ def test_set_low_broken_cloud_layer(
     mcp_stdio_session: McpStdioSession,
     xplane_keep_cloud_layer: bool,
 ) -> None:
+    """Regional cloud writes are accepted immediately; GPU/cloud sim readback can lag ~1 min (XP12 docs)."""
     layer = 0
     targets: dict[str, float] = {
         "sim/weather/region/cloud_coverage_percent": 0.62,
@@ -372,6 +395,11 @@ def test_set_low_broken_cloud_layer(
     s = mcp_stdio_session
     assert_xplane_reachable_via_mcp(s)
     mcp_apply_regional_weather_draw_primers(s)
+    try:
+        imm_meta = mcp_find_dataref(s, _UPDATE_WEATHER_IMMEDIATELY)
+        mcp_set_dataref_value(s, str(imm_meta["id"]), 1)
+    except McpToolError:
+        pass
 
     entries: list[tuple[str, str, int, float]] = []
     for name, target in targets.items():
@@ -387,32 +415,51 @@ def test_set_low_broken_cloud_layer(
             if "dataref_is_readonly" in str(exc).lower():
                 pytest.skip("Regional cloud datarefs are read-only in this session")
             raise
-    time.sleep(5.0 if xplane_keep_cloud_layer else 1.0)
+
     msl_altitude_datarefs = frozenset(
         {
             "sim/weather/region/cloud_base_msl_m",
             "sim/weather/region/cloud_tops_msl_m",
         }
     )
+    deadline_s = 150.0 if xplane_keep_cloud_layer else 90.0
+    deadline = time.monotonic() + deadline_s
+    poll_s = 2.0
+    while time.monotonic() < deadline:
+        all_match = True
+        for name, dr_id, ui, tgt in entries:
+            payload = mcp_get_dataref_value(s, dr_id, index=ui)
+            got = _coerce_region_indexed_float(payload, ui)
+            if not _cloud_readback_matches_target(
+                got, name, tgt, msl_altitude_datarefs
+            ):
+                all_match = False
+                break
+        if all_match:
+            return
+        time.sleep(poll_s)
+
     for name, dr_id, ui, tgt in entries:
         payload = mcp_get_dataref_value(s, dr_id, index=ui)
-        raw = payload["data"]
-        if isinstance(raw, list):
-            got = float(raw[ui])
-        else:
-            got = float(raw)
+        got = _coerce_region_indexed_float(payload, ui)
         if name in msl_altitude_datarefs:
             assert got == pytest.approx(
                 tgt,
                 rel=0.5,
                 abs=800.0,
-            ), f"{name} readback {got!r} far from requested {tgt!r}"
+            ), (
+                f"{name} readback {got!r} far from requested {tgt!r} after {deadline_s:.0f}s "
+                "(X-Plane 12 cloud datarefs often lag the GPU sim; try again or increase load)"
+            )
         else:
             assert got == pytest.approx(
                 tgt,
                 rel=0.65,
                 abs=0.55,
-            ), f"{name} readback {got!r} far from requested {tgt!r}"
+            ), (
+                f"{name} readback {got!r} far from requested {tgt!r} after {deadline_s:.0f}s "
+                "(X-Plane 12 cloud datarefs often lag the GPU sim; try again or increase load)"
+            )
 
 
 @pytest.mark.integration
