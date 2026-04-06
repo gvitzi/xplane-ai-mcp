@@ -52,28 +52,6 @@ public sealed class XPlaneRestClient : IDisposable
         if (string.IsNullOrWhiteSpace(airportId))
             throw new ArgumentException("airport_id is required", nameof(airportId));
         var aircraft = await GetCurrentAircraftAsync(cancellationToken).ConfigureAwait(false);
-        return await StartNewFlightAsync(airportId, ramp, aircraft.Path, aircraft.Livery, cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task<JsonElement> StartNewFlightAsync(
-        string airportId,
-        string ramp = "A1",
-        string? aircraftPath = null,
-        string? livery = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(airportId))
-            throw new ArgumentException("airport_id is required", nameof(airportId));
-
-        var path = aircraftPath;
-        var liv = livery;
-        if (path is null)
-        {
-            var ac = await GetCurrentAircraftAsync(cancellationToken).ConfigureAwait(false);
-            path = ac.Path;
-            liv ??= ac.Livery;
-        }
-
         var flight = new Dictionary<string, object?>
         {
             ["ramp_start"] = new Dictionary<string, object?>
@@ -81,10 +59,10 @@ public sealed class XPlaneRestClient : IDisposable
                 ["airport_id"] = airportId.ToUpperInvariant(),
                 ["ramp"] = ramp,
             },
-            ["aircraft"] = new Dictionary<string, object?> { ["path"] = path! },
+            ["aircraft"] = new Dictionary<string, object?> { ["path"] = aircraft.Path },
         };
-        if (!string.IsNullOrEmpty(liv))
-            ((Dictionary<string, object?>)flight["aircraft"]!)["livery"] = liv;
+        if (!string.IsNullOrEmpty(aircraft.Livery))
+            ((Dictionary<string, object?>)flight["aircraft"]!)["livery"] = aircraft.Livery;
 
         var json = JsonSerializer.SerializeToElement(flight);
         return await StartFlightAsync(json, cancellationToken).ConfigureAwait(false);
@@ -284,6 +262,8 @@ public sealed class XPlaneRestClient : IDisposable
                 throw new XPlaneApiException("Expected top-level JSON object from X-Plane API", (int)response.StatusCode);
             }
 
+            ThrowIfJsonIndicatesXPlaneError(response, root);
+
             return root.Clone();
         }
         catch (JsonException ex)
@@ -301,8 +281,34 @@ public sealed class XPlaneRestClient : IDisposable
     private static string? TryGetErrorMessage(JsonElement root) =>
         root.TryGetProperty("error_message", out var e) && e.ValueKind == JsonValueKind.String ? e.GetString() : null;
 
-    private static string? TryGetErrorCode(JsonElement root) =>
-        root.TryGetProperty("error_code", out var e) && e.ValueKind == JsonValueKind.String ? e.GetString() : null;
+    private static string? TryGetErrorCode(JsonElement root)
+    {
+        if (!root.TryGetProperty("error_code", out var e))
+            return null;
+        return e.ValueKind switch
+        {
+            JsonValueKind.String => e.GetString(),
+            JsonValueKind.Number => e.GetRawText(),
+            _ => null,
+        };
+    }
+
+    /// <summary>X-Plane may return HTTP 200 with <c>error_message</c> / <c>error_code</c> for failed flight init, etc.</summary>
+    private static void ThrowIfJsonIndicatesXPlaneError(HttpResponseMessage response, JsonElement root)
+    {
+        var msg = TryGetErrorMessage(root);
+        if (string.IsNullOrEmpty(msg) && root.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Object)
+            msg = TryGetErrorMessage(data);
+
+        if (string.IsNullOrEmpty(msg))
+            return;
+
+        var code = TryGetErrorCode(root);
+        if (code is null && root.TryGetProperty("data", out var data2) && data2.ValueKind == JsonValueKind.Object)
+            code = TryGetErrorCode(data2);
+
+        throw new XPlaneApiException(msg, (int)response.StatusCode, code, root.GetRawText());
+    }
 
     private static JsonElement ParseJson(string json)
     {

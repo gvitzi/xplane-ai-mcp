@@ -177,6 +177,138 @@ def test_set_sealevel_pressure_1030_hpa(
 
 
 @pytest.mark.integration
+def test_set_sealevel_pressure_1013_hpa(
+    mcp_stdio_session: McpStdioSession,
+    xplane_weather_region_index: int,
+) -> None:
+    dataref_name = "sim/weather/region/sealevel_pressure_pas"
+    target_pa = 101_300.0
+    forced_index = xplane_weather_region_index
+    s = mcp_stdio_session
+    assert_xplane_reachable_via_mcp(s)
+
+    meta = mcp_find_dataref(s, dataref_name)
+    dr_id = str(meta["id"])
+
+    use_idx: int | None
+    if forced_index >= 0:
+        use_idx = forced_index
+        try:
+            before = mcp_get_dataref_value(s, dr_id, index=use_idx)
+        except McpToolError as exc:
+            pytest.skip(f"Could not read {dataref_name} at index {use_idx}: {exc}")
+    else:
+        before = None
+        use_idx = None
+        for idx in (None, 0):
+            try:
+                if idx is None:
+                    before = mcp_get_dataref_value(s, dr_id)
+                else:
+                    before = mcp_get_dataref_value(s, dr_id, index=idx)
+                use_idx = idx
+                break
+            except McpToolError:
+                continue
+        if before is None:
+            pytest.skip(
+                f"Could not read {dataref_name} (tried scalar and index 0); "
+                "pass --xplane-weather-region-index=N if your build needs another slot."
+            )
+
+    def get_pressure() -> dict:
+        if use_idx is None:
+            return mcp_get_dataref_value(s, dr_id)
+        return mcp_get_dataref_value(s, dr_id, index=use_idx)
+
+    def set_pressure(value: Any) -> None:
+        mcp_set_dataref_value(s, dr_id, value, index=use_idx)
+
+    try:
+        set_pressure(target_pa)
+    except McpToolError as exc:
+        if "dataref_is_readonly" in str(exc).lower():
+            pytest.skip("Sea level pressure dataref is read-only in this session")
+        raise
+    time.sleep(0.35)
+    after = get_pressure()
+    assert after["data"] == pytest.approx(
+        target_pa,
+        abs=2500,
+        rel=0.02,
+    ), (
+        f"readback {after['data']!r} Pa far from requested {target_pa} Pa "
+        "(try another --xplane-weather-region-index if this is the wrong slot)"
+    )
+
+
+@pytest.mark.integration
+def test_set_sealevel_pressure_998_hpa(
+    mcp_stdio_session: McpStdioSession,
+    xplane_weather_region_index: int,
+) -> None:
+    dataref_name = "sim/weather/region/sealevel_pressure_pas"
+    target_pa = 99_800.0
+    forced_index = xplane_weather_region_index
+    s = mcp_stdio_session
+    assert_xplane_reachable_via_mcp(s)
+
+    meta = mcp_find_dataref(s, dataref_name)
+    dr_id = str(meta["id"])
+
+    use_idx: int | None
+    if forced_index >= 0:
+        use_idx = forced_index
+        try:
+            before = mcp_get_dataref_value(s, dr_id, index=use_idx)
+        except McpToolError as exc:
+            pytest.skip(f"Could not read {dataref_name} at index {use_idx}: {exc}")
+    else:
+        before = None
+        use_idx = None
+        for idx in (None, 0):
+            try:
+                if idx is None:
+                    before = mcp_get_dataref_value(s, dr_id)
+                else:
+                    before = mcp_get_dataref_value(s, dr_id, index=idx)
+                use_idx = idx
+                break
+            except McpToolError:
+                continue
+        if before is None:
+            pytest.skip(
+                f"Could not read {dataref_name} (tried scalar and index 0); "
+                "pass --xplane-weather-region-index=N if your build needs another slot."
+            )
+
+    def get_pressure() -> dict:
+        if use_idx is None:
+            return mcp_get_dataref_value(s, dr_id)
+        return mcp_get_dataref_value(s, dr_id, index=use_idx)
+
+    def set_pressure(value: Any) -> None:
+        mcp_set_dataref_value(s, dr_id, value, index=use_idx)
+
+    try:
+        set_pressure(target_pa)
+    except McpToolError as exc:
+        if "dataref_is_readonly" in str(exc).lower():
+            pytest.skip("Sea level pressure dataref is read-only in this session")
+        raise
+    time.sleep(0.35)
+    after = get_pressure()
+    assert after["data"] == pytest.approx(
+        target_pa,
+        abs=2500,
+        rel=0.02,
+    ), (
+        f"readback {after['data']!r} Pa far from requested {target_pa} Pa "
+        "(try another --xplane-weather-region-index if this is the wrong slot)"
+    )
+
+
+@pytest.mark.integration
 def test_ground_wind_calm(mcp_stdio_session: McpStdioSession) -> None:
     _set_regional_ground_wind(mcp_stdio_session, speed_kts=0.0, direction_deg=0.0)
     s = mcp_stdio_session

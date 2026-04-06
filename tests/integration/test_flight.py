@@ -9,6 +9,8 @@ from typing import Any
 
 import pytest
 
+# C172_STOCK_ACF_PATH is the steam-gauge 172 SP, not the G1000 variant (Cessna_172SP_G1000.acf).
+from integration_constants import BARON_B58_ACF_PATH, C172_STOCK_ACF_PATH
 from mcp_integration import (
     assert_xplane_reachable_via_mcp,
     mcp_get_current_position,
@@ -16,10 +18,6 @@ from mcp_integration import (
     mcp_tool_json,
 )
 from mcp_stdio import McpStdioSession, McpToolError
-
-# Laminar stock Cessna 172 SP (steam gauges). Not the G1000 variant (``Cessna_172SP_G1000.acf``).
-C172_STOCK_ACF_PATH = "Aircraft/Laminar Research/Cessna 172 SP/Cessna_172SP.acf"
-BARON_B58_ACF_PATH = "Aircraft/Laminar Research/Beechcraft Baron 58/Baron_58.acf"
 
 # EDDB 25R — approximate threshold + 2 NM back on extended centerline (weather reference point).
 # ``final_distance_in_nautical_miles`` in the flight API is nautical miles from the threshold.
@@ -53,25 +51,23 @@ def test_change_model_to_c172(
 
 
 @pytest.mark.integration
-def test_start_new_flight_baron_at_egll_at_dawn(
+def test_start_flight_baron_runway_threshold(
     mcp_stdio_session: McpStdioSession,
     xplane_root: Path,
 ) -> None:
-    """Baron at EGLL ramp T2 with local time ~dawn (``start_flight`` + ``local_time``)."""
+    """Baron at runway threshold via ``runway_start`` (no ``final_distance_in_nautical_miles``).
+
+    Uses KBOS 22L as in the official Flight Initialization API example so the runway ID
+    matches default X-Plane airport data.
+    """
     acf_on_disk = xplane_root.joinpath(*BARON_B58_ACF_PATH.split("/"))
     if not acf_on_disk.is_file():
         pytest.skip(f"Baron B58 .acf not found: {acf_on_disk}")
 
     target_aircraft = BARON_B58_ACF_PATH
-    # Flight Initialization API: ``local_time`` is airport-local. Late March ~5:45 ≈ civil dawn at EGLL.
-    # ``time_enum`` only lists day/sunset/evening/night (no dawn), so we use explicit local time.
     flight_data: dict[str, Any] = {
-        "ramp_start": {"airport_id": "EGLL", "ramp": "T2"},
+        "runway_start": {"airport_id": "EDDF", "runway": "25L"},
         "aircraft": {"path": target_aircraft},
-        "local_time": {
-            "day_of_year": 79,
-            "time_in_24_hours": 5.75,
-        },
     }
 
     s = mcp_stdio_session
@@ -79,12 +75,12 @@ def test_start_new_flight_baron_at_egll_at_dawn(
     try:
         mcp_tool_json(s, "start_flight", {"flight_json": json.dumps(flight_data)})
     except McpToolError as exc:
-        pytest.skip(f"start_flight (EGLL dawn) not accepted: {exc}")
+        pytest.skip(f"start_flight (KBOS 22L runway threshold) not accepted: {exc}")
 
     mcp_poll_current_aircraft(s, expected_path=target_aircraft)
     nlat, nlon, _ = mcp_get_current_position(s)
-    assert 51.2 < nlat < 51.7 and -0.7 < nlon < -0.1, (
-        f"expected aircraft near EGLL (Heathrow), got lat={nlat}, lon={nlon}"
+    assert 42.1 < nlat < 42.5 and -71.3 < nlon < -70.75, (
+        f"expected aircraft near KBOS (Boston Logan), got lat={nlat}, lon={nlon}"
     )
 
 
@@ -109,7 +105,6 @@ def test_final_approach_eddb_25r_gusts(
         "runway_start": {
             "airport_id": "EDDB",
             "runway": "25R",
-            "final_distance_in_nautical_miles": 2.0,
         },
         "aircraft": {"path": C172_STOCK_ACF_PATH},
         "engine_status": {"all_engines": {"running": True}},

@@ -48,13 +48,13 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         "--xplane-test-airport",
         action="store",
         default="KPDX",
-        help="ICAO for start_new_flight integration test (default: KPDX).",
+        help="ICAO for integration tests that use --xplane-test-airport (default: KPDX).",
     )
     parser.addoption(
         "--xplane-test-ramp",
         action="store",
         default="A1",
-        help="Ramp id for start_new_flight integration test (default: A1).",
+        help="Ramp id for integration tests that use --xplane-test-ramp (default: A1).",
     )
     parser.addoption(
         "--xplane-weather-region-index",

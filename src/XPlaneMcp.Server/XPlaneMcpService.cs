@@ -23,14 +23,6 @@ public sealed class XPlaneMcpService(XPlaneRestClient http, XPlaneConfig config)
     public Task<JsonElement> MovePlaneToAirportAsync(string airportId, string ramp = "A1", CancellationToken cancellationToken = default) =>
         _http.MovePlaneToAirportAsync(airportId, ramp, cancellationToken);
 
-    public Task<JsonElement> StartNewFlightAsync(
-        string airportId,
-        string ramp = "A1",
-        string? aircraftPath = null,
-        string? livery = null,
-        CancellationToken cancellationToken = default) =>
-        _http.StartNewFlightAsync(airportId, ramp, aircraftPath, livery, cancellationToken);
-
     public IReadOnlyList<XPlaneAircraftModel> ListAvailablePlanes() => _http.ListAvailablePlanes();
 
     public Task<JsonElement> ChangePlaneModelAsync(string aircraftPath, string? livery = null, CancellationToken cancellationToken = default) =>

@@ -125,6 +125,23 @@ public sealed class XPlaneRestClientTests
     }
 
     [Fact]
+    public async Task ParseResponse_throws_on_success_http_when_error_message_present()
+    {
+        using var resp = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """{"error_message":"invalid flight init","error_code":2}""",
+                Encoding.UTF8,
+                "application/json"),
+        };
+        var ex = await Assert.ThrowsAsync<XPlaneApiException>(() =>
+            XPlaneRestClient.ParseResponseAsync(resp, allowEmpty: true, CancellationToken.None));
+        Assert.Equal(200, ex.StatusCode);
+        Assert.Equal("2", ex.ErrorCode);
+        Assert.Contains("invalid flight init", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void DecodeDatarefData_decodes_base64_utf8()
     {
         var b64 = Convert.ToBase64String(Encoding.UTF8.GetBytes("Aircraft/Test.acf"));
