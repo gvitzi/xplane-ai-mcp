@@ -6,6 +6,16 @@ artifacts/
 # Hidden directories (.name/) at any depth
 **/.*/
 
+# Local secrets / credentials (never commit)
+.env
+.env.*
+!.env.example
+*.pfx
+*.snk
+
+# Optional local X-Plane dataref snapshots (see scripts/datarefs_txt_to_csv.py)
+.refs/
+
 # Python
 __pycache__/
 *.py[cod]

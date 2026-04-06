@@ -48,25 +48,25 @@ def default_mcp_server_argv(repo_root: Path) -> list[str] | None:
     if os.name == "nt":
         candidates.extend(
             [
-                repo_root / "src/XPlaneMcp.Server/bin/Release/net9.0/XPlaneMcp.Server.exe",
-                repo_root / "src/XPlaneMcp.Server/bin/Debug/net9.0/XPlaneMcp.Server.exe",
-                repo_root / "artifacts/xplane-mcp/XPlaneMcp.Server.exe",
+                repo_root / "src/XPlaneMcp.Server/bin/Release/net9.0/xplaneMCP.exe",
+                repo_root / "src/XPlaneMcp.Server/bin/Debug/net9.0/xplaneMCP.exe",
+                repo_root / "artifacts/xplane-mcp/xplaneMCP.exe",
             ]
         )
     else:
         candidates.extend(
             [
-                repo_root / "src/XPlaneMcp.Server/bin/Release/net9.0/XPlaneMcp.Server",
-                repo_root / "src/XPlaneMcp.Server/bin/Debug/net9.0/XPlaneMcp.Server",
-                repo_root / "artifacts/xplane-mcp/XPlaneMcp.Server",
+                repo_root / "src/XPlaneMcp.Server/bin/Release/net9.0/xplaneMCP",
+                repo_root / "src/XPlaneMcp.Server/bin/Debug/net9.0/xplaneMCP",
+                repo_root / "artifacts/xplane-mcp/xplaneMCP",
             ]
         )
     for exe in candidates:
         if exe.is_file():
             return [str(exe)]
-    dll = repo_root / "src/XPlaneMcp.Server/bin/Release/net9.0/XPlaneMcp.Server.dll"
+    dll = repo_root / "src/XPlaneMcp.Server/bin/Release/net9.0/xplaneMCP.dll"
     if not dll.is_file():
-        dll = repo_root / "src/XPlaneMcp.Server/bin/Debug/net9.0/XPlaneMcp.Server.dll"
+        dll = repo_root / "src/XPlaneMcp.Server/bin/Debug/net9.0/xplaneMCP.dll"
     if dll.is_file():
         return ["dotnet", str(dll)]
     return None

@@ -1,6 +1,6 @@
 # Copies a Codex CLI ~/.codex/config.toml snippet for this install (stdio MCP).
 $ErrorActionPreference = 'Stop'
-$exePath = Join-Path $PSScriptRoot 'XPlaneMcp.Server.exe'
+$exePath = Join-Path $PSScriptRoot 'xplaneMCP.exe'
 if (-not (Test-Path -LiteralPath $exePath)) {
     exit 1
 }

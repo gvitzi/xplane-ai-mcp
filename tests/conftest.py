@@ -20,7 +20,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         action="store",
         default=None,
         help=(
-            "Path to XPlaneMcp.Server executable (or `dotnet` + DLL as one argv string is not supported; "
+            "Path to xplaneMCP executable (or `dotnet` + DLL as one argv string is not supported; "
             "pass a single .exe or native binary path). Default: auto-detect Release/Debug build under src/."
         ),
     )
@@ -100,7 +100,7 @@ def mcp_stdio_session(request: pytest.FixtureRequest, xplane_root: Path):
     if not argv:
         pytest.skip(
             "MCP server not found. Build with `dotnet build -c Release` or pass "
-            "`--mcp-server=PATH` to XPlaneMcp.Server.exe."
+            "`--mcp-server=PATH` to xplaneMCP.exe."
         )
 
     env = os.environ.copy()

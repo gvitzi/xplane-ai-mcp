@@ -8,14 +8,14 @@ function SetSnippet() {
     if (exePath.charAt(exePath.length - 1) !== "\\") {
         exePath += "\\";
     }
-    exePath += "XPlaneMcp.Server.exe";
+    exePath += "xplaneMCP.exe";
     var lit = exePath.replace(/'/g, "''");
     var text = "[mcp_servers.xplaneMCP]\r\n";
     text += "command = '" + lit + "'\r\n";
     text += "args = []\r\n";
     text += "enabled = true\r\n\r\n";
     text += "# Optional:\r\n";
-    text += "# env = { XPLANE_HOST = \"127.0.0.1\", XPLANE_PORT = \"49000\" }";
+    text += "# env = { XPLANE_HOST = \"127.0.0.1\", XPLANE_PORT = \"8086\" }";
     Session.Property("CODEX_CONFIG_SNIPPET") = text;
     return 1;
 }

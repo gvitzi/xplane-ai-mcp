@@ -7,21 +7,25 @@
     UI: WixUI_InstallDir_xplane + CodexConfigDlg; WiX PNGs from prepare_installer_assets.py; icon from resources/xplane_mcp_icon.ico.
   -->
   <Package
-      Name="xplaneMCP"
-      Manufacturer="xplaneMCP"
+      Name="X-Plane AI MCP"
+      Manufacturer="xplane-ai-mcp"
       Version="$(var.ProductVersion)"
       UpgradeCode="A8D4C9E2-7B1F-4A3C-9D6E-8021F4A9B3C7"
       Language="1033"
       Scope="perMachine"
       InstallerVersion="500">
-    <MajorUpgrade DowngradeErrorMessage="A newer version of xplaneMCP is already installed." />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of X-Plane AI MCP is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
     <StandardDirectory Id="ProgramFiles6432Folder">
       <Directory Id="INSTALLFOLDER" Name="xplaneMCP" />
     </StandardDirectory>
 
-    <Feature Id="MainFeature" Title="xplaneMCP" Description="X-Plane 12 MCP server (stdio)" Level="1">
+    <Feature
+        Id="MainFeature"
+        Title="X-Plane AI MCP"
+        Description="MCP server for X-Plane 12: connect Cursor, Codex, and other MCP clients to the simulator via the local Web API. Installs xplaneMCP.exe (stdio) and Codex config helpers."
+        Level="1">
       <ComponentGroupRef Id="AppPayload" Primary="yes" />
     </Feature>
 

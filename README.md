@@ -13,12 +13,11 @@ MCP server for X-Plane 12: drive X-Plane from a local AI assistant with natural 
 > **Heads-up:** you need **two things** running: **X-Plane 12** with its web API enabled, and an **MCP-capable AI app** that starts this server for you. This repository is **not** a standalone chat or voice app by itself.
 
 
-[![Download Latest](https://img.shields.io/badge/Download-latest%20version-blue?style=for-the-badge)](
-https://github.com/gvitzi/xplane-mcp/releases/latest/download/xplane-mcp-installer.exe)
+[![Download Latest](https://img.shields.io/badge/Download-latest%20version-blue?style=for-the-badge)](https://github.com/gvitzi/xplane-ai-mcp/releases/latest/download/xplane_mcp_installer.msi)
 
-![Latest Release](https://img.shields.io/github/v/release/gvitzi/xplane-mcp)
-![Downloads](https://img.shields.io/github/downloads/gvitzi/xplane-mcp/total)
-![License](https://img.shields.io/github/license/gvitzi/xplane-mcp)
+![Latest Release](https://img.shields.io/github/v/release/gvitzi/xplane-ai-mcp)
+![Downloads](https://img.shields.io/github/downloads/gvitzi/xplane-ai-mcp/total)
+![License](https://img.shields.io/github/license/gvitzi/xplane-ai-mcp)
 ---
 
 ## Contents
@@ -67,7 +66,7 @@ Your MCP client must **start this server** and use **stdio** (standard input/out
 
 **In your AI app’s MCP server settings**
 
-- Point **command** at the correct: by default **command:** `C:\Program Files\xplaneMCP\XPlaneMcp.exe`
+- Point **command** at the correct: by default **command:** `C:\Program Files\xplaneMCP\xplaneMCP.exe`
 - Communication must use **standard output** (stdio), as usual for MCP servers.
 - Add (Optional) environment variable **`XPLANE_ROOT=C:\SteamLibrary\steamapps\common\X-Plane 12`** (Change path to your X-plane installation folder)
 
@@ -82,7 +81,7 @@ Save under **`.cursor/mcp.json`** in your project (or use **Cursor → Settings 
 {
   "mcpServers": {
     "xplane-ai-mcp": {
-      "command": "E:\\path\\to\\xplane-ai-mcp\\artifacts\\xplane-mcp\\XPlaneMcp.Server.exe",
+      "command": "E:\\path\\to\\xplane-ai-mcp\\artifacts\\xplane-mcp\\xplaneMCP.exe",
       "args": [],
       "cwd": "E:\\path\\to\\xplane-ai-mcp",
       "env": {}
@@ -104,7 +103,7 @@ Edit **`%USERPROFILE%\.codex\config.toml`**. Each `[mcp_servers.*]` name must be
 
 ```toml
 [mcp_servers.xplaneMCP]
-command = 'E:/path/to/xplane-ai-mcp/artifacts/xplane-mcp/XPlaneMcp.Server.exe'
+command = 'E:/path/to/xplane-ai-mcp/artifacts/xplane-mcp/xplaneMCP.exe'
 args = []
 enabled = true
 ```
@@ -186,6 +185,8 @@ A concise table of tool names and roles lives in **[`MCP_API_OVERVIEW.md`](MCP_A
 
 ## Developers and contributors
 
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for build commands, tests, and pull request guidelines. To report security issues privately, see **[SECURITY.md](SECURITY.md)**.
+
 ### Advanced Configuration
 
 **Optional environment variables** (this MCP server):
@@ -243,12 +244,12 @@ pytest -m integration --xplane-root="E:\SteamLibrary\steamapps\common\X-Plane 12
 # optional helper: .\make.ps1 test-integration -- --xplane-root="E:\path\to\X-Plane 12"
 ```
 
-Build the MCP server first (`dotnet build -c Release` or `.\make.ps1 install` if you use the repo script) so `tests/conftest.py` can find `XPlaneMcp.Server.exe` under `src/XPlaneMcp.Server/bin/...`, or pass **`--mcp-server=PATH`**.
+Build the MCP server first (`dotnet build -c Release` or `.\make.ps1 install` if you use the repo script) so `tests/conftest.py` can find `xplaneMCP.exe` under `src/XPlaneMcp.Server/bin/...`, or pass **`--mcp-server=PATH`**.
 
 Pytest options are registered from [`tests/conftest.py`](tests/conftest.py):
 
 - `--xplane-root` (required for integration): path to your X-Plane installation (sets `XPLANE_ROOT` for the server process)
-- `--mcp-server` (optional): path to `XPlaneMcp.Server.exe` (or native binary) if auto-detection fails
+- `--mcp-server` (optional): path to `xplaneMCP.exe` (or native binary) if auto-detection fails
 - `--xplane-host`, `--xplane-port`, `--xplane-timeout`: Web API connection tuning
 - `--xplane-test-airport`, `--xplane-test-ramp`: start-flight test (defaults: KPDX, A1)
 - `--xplane-weather-region-index`: array index for `sim/weather/region/*` in the sea-level pressure test, or `-1` (default) to auto-detect scalar vs index `0`
@@ -278,4 +279,4 @@ Portions of this repository were developed with assistance from **AI coding tool
 
 ## License
 
-Specify your license here (not set in this repository yet).
+This project is licensed under the [MIT License](LICENSE).

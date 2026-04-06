@@ -1,5 +1,5 @@
-xplaneMCP — Codex CLI (config.toml) setup
-========================================
+X-Plane AI MCP — Codex CLI (config.toml) setup
+===============================================
 
 1) Open (or create) your Codex configuration file:
    %USERPROFILE%\.codex\config.toml
@@ -7,12 +7,12 @@ xplaneMCP — Codex CLI (config.toml) setup
 2) Add a server entry for xplaneMCP. Example (stdio):
 
    [mcp_servers.xplaneMCP]
-   command = 'C:/full/path/to/XPlaneMcp.Server.exe'
+   command = 'C:/full/path/to/xplaneMCP.exe'
    args = []
    enabled = true
 
    Use single quotes around command as above, or double quotes with escaped backslashes.
-   The install folder contains XPlaneMcp.Server.exe; you can copy its full path from Explorer.
+   The install folder contains xplaneMCP.exe; you can copy its full path from Explorer.
 
 3) Optional environment variables for X-Plane Web API (defaults work for local X-Plane):
 
@@ -20,7 +20,7 @@ xplaneMCP — Codex CLI (config.toml) setup
    command = '...'
    args = []
    enabled = true
-   env = { XPLANE_HOST = "127.0.0.1", XPLANE_PORT = "49000" }
+   env = { XPLANE_HOST = "127.0.0.1", XPLANE_PORT = "8086" }
 
 4) Save the file and restart Codex if it is already running.
 

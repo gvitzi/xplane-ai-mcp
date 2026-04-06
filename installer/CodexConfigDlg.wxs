@@ -7,7 +7,7 @@
   -->
   <Fragment>
     <UI>
-      <Dialog Id="CodexConfigDlg" Width="370" Height="270" Title="xplaneMCP - Installation complete">
+      <Dialog Id="CodexConfigDlg" Width="370" Height="270" Title="X-Plane AI MCP - Installation complete">
         <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="373" Height="0" />
         <Control
             Id="Title"

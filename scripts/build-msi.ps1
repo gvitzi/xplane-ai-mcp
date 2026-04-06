@@ -32,8 +32,8 @@ Copy-Item (Join-Path $installerDir 'CopyCodexMcpSnippet.ps1') $staging -Force
 Copy-Item (Join-Path $installerDir 'CopyCodexMcpSnippet.cmd') $staging -Force
 Copy-Item (Join-Path $installerDir 'CodexSetup.txt') $staging -Force
 
-if (-not (Test-Path (Join-Path $staging 'XPlaneMcp.Server.exe'))) {
-    Write-Error "Publish did not produce XPlaneMcp.Server.exe under $staging"
+if (-not (Test-Path (Join-Path $staging 'xplaneMCP.exe'))) {
+    Write-Error "Publish did not produce xplaneMCP.exe under $staging"
 }
 
 Write-Host "Building WiX MSI..."
@@ -47,4 +47,4 @@ Write-Host ""
 Write-Host "MSI: $msiOut"
 Write-Host "Install: double-click or msiexec /i `"$msiOut`""
 Write-Host "Silent:    msiexec /i `"$msiOut`" /qn"
-Write-Host "Default install dir: C:\Program Files\xplaneMCP\XPlaneMcp.Server.exe"
+Write-Host "Default install dir: C:\Program Files\xplaneMCP\xplaneMCP.exe"

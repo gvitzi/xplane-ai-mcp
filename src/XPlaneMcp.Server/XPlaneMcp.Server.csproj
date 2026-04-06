@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <AssemblyName>xplaneMCP</AssemblyName>
     <TargetFramework>net9.0</TargetFramework>
     <!-- Version / FileVersion inherited from repo Directory.Build.props -->
     <ImplicitUsings>enable</ImplicitUsings>

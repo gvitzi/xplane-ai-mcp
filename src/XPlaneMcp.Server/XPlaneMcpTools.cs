@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using ModelContextProtocol;
@@ -68,6 +69,24 @@ public sealed class XPlaneMcpTools(XPlaneMcpService svc)
             var el = await svc.GetCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
             return Json(el);
         }, cancellationToken);
+
+    [McpServerTool, Description(
+        "Returns this MCP server build identity (name, version, assembly). Use to confirm which xplane-ai-mcp release is running; unrelated to X-Plane get_capabilities.")]
+    public string GetMcpServerVersion() =>
+        RunToolSync(() =>
+        {
+            var asm = typeof(XPlaneMcpTools).Assembly;
+            var informational = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+            var version = !string.IsNullOrWhiteSpace(informational)
+                ? informational!
+                : asm.GetName().Version?.ToString() ?? "unknown";
+            return Json(new
+            {
+                name = "xplane-ai-mcp",
+                version,
+                assembly = asm.GetName().Name,
+            });
+        });
 
     [McpServerTool, Description(
         "POST /api/v3/flight — start a new flight. flight_json is the inner `data` object (Flight Initialization API). " +

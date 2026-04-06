@@ -22,16 +22,16 @@ New-Item -ItemType Directory -Force -Path $Output | Out-Null
 Write-Host "Publishing $project -> $Output ($Configuration)..."
 dotnet publish $project -c $Configuration -o $Output --no-self-contained
 
-$exe = Join-Path $Output 'XPlaneMcp.Server.exe'
+$exe = Join-Path $Output 'xplaneMCP.exe'
 if (Test-Path $exe) {
     Write-Host ""
     Write-Host "Published executable: $exe"
     Write-Host 'Cursor mcp.json example: set "command" to this path, "args": [], "cwd" to repo root (or omit).'
 } else {
-    $dll = Join-Path $Output 'XPlaneMcp.Server.dll'
+    $dll = Join-Path $Output 'xplaneMCP.dll'
     if (Test-Path $dll) {
         Write-Host ""
         Write-Host "Published: $dll"
-        Write-Host 'Run with: dotnet "<path>/XPlaneMcp.Server.dll"'
+        Write-Host 'Run with: dotnet "<path>/xplaneMCP.dll"'
     }
 }

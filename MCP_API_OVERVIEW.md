@@ -8,6 +8,7 @@ API discovery, listing, and simulator commands.
 
 | Tool | Description |
 |------|-------------|
+| `get_mcp_server_version` | Returns this MCP server’s build identity (`name`, `version`, `assembly`). Confirms which **xplane-ai-mcp** release is running; not the same as X-Plane’s `get_capabilities`. |
 | `get_capabilities` | Reads X-Plane Web API capabilities (versions and server info). |
 | `list_commands` | Pages through available simulator commands (`limit`, `start`). |
 | `list_datarefs` | Pages through datarefs (`limit`, `start`). |
