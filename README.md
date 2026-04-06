@@ -159,7 +159,7 @@ scripts/build-msi.*        # WiX: artifacts/installer/xplaneMCP.msi
 installer/                 # xplaneMcp.wixproj + Package.wxs
 Directory.Build.props      # shared Version for app + MSI ProductVersion
 pyproject.toml             # pip install -e ".[dev]", pytest config
-Taskfile.yml / Makefile    # .NET + integration pytest + msi
+Makefile / make.ps1        # .NET + integration pytest + msi (optional convenience)
 ```
 
 Optional local **`.refs/`** (not in git): CSV and index snapshots from X-Plane’s `DataRefs.txt` are gitignored. Generate them with `python scripts/datarefs_txt_to_csv.py --help`.
@@ -178,7 +178,7 @@ Optional local **`.refs/`** (not in git): CSV and index snapshots from X-Plane�
 | MCP server | C# / **net9.0**, [ModelContextProtocol](https://www.nuget.org/packages/ModelContextProtocol) |
 | Integration tests | Python 3.11+ pytest spawns [`XPlaneMcp.Server`](src/XPlaneMcp.Server/) (see `tests/mcp_stdio.py`) |
 | Tests | **xUnit** (.NET), **pytest** (integration + smoke) |
-| Tasks | [Task](https://taskfile.dev/) (`task …`), **Make** / **make.ps1** at repo root |
+| Automation | **GNU Make** ([`Makefile`](Makefile)) or **[`make.ps1`](make.ps1)** at repo root |
 | Commits | [Conventional Commits](https://www.conventionalcommits.org/) (see below) |
 
 ## Integration tests (repo root)
@@ -187,10 +187,10 @@ The default `pytest` run excludes `integration`-marked tests (`addopts` in [`pyp
 
 ```bash
 pytest -m integration --xplane-root="E:\SteamLibrary\steamapps\common\X-Plane 12"
-# or: task test-integration -- --xplane-root="..."
+# or: make test-integration PYTEST_ARGS='--xplane-root="E:\path\to\X-Plane 12"'
 ```
 
-Build the MCP server first (`dotnet build -c Release` or `task install`) so `tests/conftest.py` can find `XPlaneMcp.Server.exe` under `src/XPlaneMcp.Server/bin/...`, or pass **`--mcp-server=PATH`** to the executable.
+Build the MCP server first (`dotnet build -c Release` or `make install` / `.\make.ps1 install`) so `tests/conftest.py` can find `XPlaneMcp.Server.exe` under `src/XPlaneMcp.Server/bin/...`, or pass **`--mcp-server=PATH`** to the executable.
 
 Pytest CLI options are registered from [`tests/conftest.py`](tests/conftest.py):
 
