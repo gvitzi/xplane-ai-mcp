@@ -14,7 +14,7 @@ __pycache__/
 venv/
 
 # Local reference exports (generate with scripts/datarefs_txt_to_csv.py)
-refs/
+.refs/
 
 # Editor / OS
 .DS_Store

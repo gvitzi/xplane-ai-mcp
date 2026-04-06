@@ -425,7 +425,7 @@ def test_integration_set_low_broken_cloud_layer(
     Configure regional weather layer 0 as a low broken layer (XP12 ``sim/weather/region/*``).
 
     Uses blended cloud type (cumulus = 2), fractional coverage ~0.62, and a low MSL band.
-    See ``refs/datarefs.csv`` / X-Plane 12 weather region datarefs.
+    See ``.refs/datarefs.csv`` / X-Plane 12 weather region datarefs.
 
     By default all values are **restored in ``finally``**, so you will not see lasting clouds
     unless you pass ``--xplane-keep-cloud-layer``. Even then: use **manual / custom weather**

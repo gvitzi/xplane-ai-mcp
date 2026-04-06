@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert X-Plane ``DataRefs.txt`` (tab-separated) into ``refs/datarefs.csv`` and index files."""
+"""Convert X-Plane ``DataRefs.txt`` (tab-separated) into ``.refs/datarefs.csv`` and index files."""
 
 from __future__ import annotations
 
@@ -15,25 +15,25 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--input",
         type=Path,
-        default=Path("refs/source/DataRefs.txt"),
-        help="Path to DataRefs.txt (default: refs/source/DataRefs.txt)",
+        default=Path(".refs/source/DataRefs.txt"),
+        help="Path to DataRefs.txt (default: .refs/source/DataRefs.txt)",
     )
     p.add_argument(
         "--csv-out",
         type=Path,
-        default=Path("refs/datarefs.csv"),
+        default=Path(".refs/datarefs.csv"),
         help="Output CSV path",
     )
     p.add_argument(
         "--readme-out",
         type=Path,
-        default=Path("refs/README.md"),
+        default=Path(".refs/README.md"),
         help="Output README path",
     )
     p.add_argument(
         "--prefix-index-out",
         type=Path,
-        default=Path("refs/prefix_index.md"),
+        default=Path(".refs/prefix_index.md"),
         help="Output prefix index markdown path",
     )
     return p.parse_args()
@@ -139,7 +139,7 @@ This folder holds a **static** export of stock X-Plane **dataref names** and met
 - **Source format:** Laminar Research `DataRefs.txt` (ships with X-Plane under `Resources/plugins/DataRefs.txt`).
 - **This snapshot:** {build_summary} (from `{source_path.as_posix()}`).
 - **Rows:** {row_count} datarefs.
-- **Checked-in source:** If you did not copy from your game folder, this file may match a public mirror (for example [XPlane2Blender `DataRefs.txt`](https://github.com/X-Plane/XPlane2Blender/blob/master/io_xplane2blender/resources/DataRefs.txt)); prefer **`Resources/plugins/DataRefs.txt` from your X-Plane 12 install** for an exact match to your build.
+- **Source file:** If you did not copy from your game folder, this file may match a public mirror (for example [XPlane2Blender `DataRefs.txt`](https://github.com/X-Plane/XPlane2Blender/blob/master/io_xplane2blender/resources/DataRefs.txt)); prefer **`Resources/plugins/DataRefs.txt` from your X-Plane 12 install** for an exact match to your build.
 
 Prefer replacing `source/DataRefs.txt` with the file from **your** X-Plane 12 install when you want the list to match your exact simulator build, then regenerate:
 

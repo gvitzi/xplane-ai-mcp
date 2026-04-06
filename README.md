@@ -132,7 +132,7 @@ pyproject.toml             # pip install -e ".[dev]", pytest config
 Taskfile.yml / Makefile    # .NET + integration pytest
 ```
 
-Optional local **`refs/`** (not in git): CSV and index snapshots from X-Plane’s `DataRefs.txt` are gitignored. Generate them with `python scripts/datarefs_txt_to_csv.py --help`.
+Optional local **`.refs/`** (not in git): CSV and index snapshots from X-Plane’s `DataRefs.txt` are gitignored. Generate them with `python scripts/datarefs_txt_to_csv.py --help`.
 
 ## Development plan (status)
 
