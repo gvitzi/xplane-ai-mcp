@@ -1,7 +1,5 @@
 # Requires GNU Make (e.g. chocolatey make, Git Bash, or WSL on Windows).
 # On Windows without make:  .\make.ps1   or   make.cmd test -- -v
-# Python PoC / archived unit tests: cd archived/python && make …
-
 .PHONY: help install install-dotnet install-py-dev test test-integration run mcp publish publish-sh
 
 PYTHON ?= python
@@ -20,7 +18,6 @@ help:
 	@echo "  make run / make mcp       dotnet run MCP stdio server"
 	@echo "  make publish              pwsh scripts/publish-server.ps1"
 	@echo "  make publish-sh           bash scripts/publish-server.sh"
-	@echo "Archived Python: cd archived/python && make install|test|mcp"
 
 install:
 	dotnet restore "$(DOTNET_SLN)"

@@ -1,9 +1,9 @@
-"""Smoke test: repo-root pytest config exposes archived Python package on PYTHONPATH."""
+"""Smoke test: repo-root pytest config exposes the Python Web API client on PYTHONPATH."""
 
 from __future__ import annotations
 
 
-def test_archived_xplane_mcp_importable() -> None:
+def test_xplane_mcp_client_importable() -> None:
     import xplane_mcp
     from xplane_mcp.xplane_client import XPlaneConfig
 

@@ -2,7 +2,7 @@
 
 An [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that lets local AI assistants (for example OpenAI Codex in the editor) read simulator state from **X-Plane 12** and send commands, using X-Plane’s built-in **local Web API** (REST + WebSocket).
 
-The **supported MCP server** is implemented in **C#** ([ModelContextProtocol](https://www.nuget.org/packages/ModelContextProtocol) SDK, **stdio** transport). The original **Python** client, PoC CLI, and **Python unit tests** live under [`archived/python/`](archived/python/) for reference. **Live integration tests** (pytest against a running simulator) stay in the repo-root [`tests/`](tests/) folder and import the archived package via `PYTHONPATH` (see [`pyproject.toml`](pyproject.toml)).
+The **supported MCP server** is implemented in **C#** ([ModelContextProtocol](https://www.nuget.org/packages/ModelContextProtocol) SDK, **stdio** transport). A small **Python** [`XPlaneHttpClient`](python/src/xplane_mcp/xplane_client.py) is kept under [`python/src/xplane_mcp/`](python/src/xplane_mcp/) for **live integration tests** (pytest against a running simulator) in the repo-root [`tests/`](tests/) folder; pytest adds that path via [`pyproject.toml`](pyproject.toml).
 
 ## Quick usage guide
 
@@ -10,7 +10,7 @@ The **supported MCP server** is implemented in **C#** ([ModelContextProtocol](ht
 
 - **X-Plane 12** running with the **local Web API** enabled (default `http://127.0.0.1:8086`). The session must allow incoming API traffic (see [Requirements](#requirements)).
 - **[.NET SDK](https://dotnet.microsoft.com/download)** **9.0+** (solution targets `net9.0`) to build and run the MCP server.
-- **Python 3.11+** only if you run **repo-root pytest** (integration tests or the import smoke test) or work with the **archived** package.
+- **Python 3.11+** only if you run **repo-root pytest** (integration tests or the import smoke test).
 
 ### Install (repo root)
 
@@ -101,7 +101,7 @@ Official X-Plane API reference: [X-Plane local Web API](https://developer.x-plan
 |------|--------|
 | X-Plane | 12.1.1+ for datarefs over HTTP/WebSocket; **12.4.0+** for `POST /flight` and `PATCH /flight` ([flight init API](https://developer.x-plane.com/article/x-plane-web-api/#Start_a_flight_v3)) |
 | .NET | SDK **9.0+** for the MCP server |
-| Python | 3.11+ optional (integration pytest + archived package) |
+| Python | 3.11+ optional (integration pytest + `python/src/xplane_mcp` client) |
 | Network | API is on `http://localhost:8086` by default (WebSocket `ws://localhost:8086/api/v3`). Use `--web_server_port=` if you change the port. “Disable Incoming Traffic” returns **403** for API calls. |
 
 ## Architecture
@@ -125,18 +125,18 @@ Dataref and command **IDs are session-local**; resolve names via the list endpoi
 ```text
 src/XPlaneMcp.sln          # .NET solution
 src/XPlaneMcp.Server/      # MCP stdio server + X-Plane clients + tools
-archived/python/           # legacy Python package, unit tests, PoC, Taskfile/Makefile
-tests/                     # pytest integration tests + conftest (PYTHONPATH → archived/python/src)
+python/src/xplane_mcp/     # Python Web API client (for pytest integration tests only)
+tests/                     # pytest integration tests + conftest (PYTHONPATH → python/src)
 scripts/publish-server.*   # publish to artifacts/xplane-mcp
 workspace_stub/            # minimal package so pip install -e ".[dev]" works at repo root
 pyproject.toml             # repo-root pytest + dev deps only
-Taskfile.yml / Makefile    # .NET + integration pytest (not archived Python)
+Taskfile.yml / Makefile    # .NET + integration pytest
 ```
 
 ## Development plan (status)
 
-- **Phase 0 — PoC**: superseded for **connectivity** by the C# server; the **Python PoC** remains in [`archived/python/`](archived/python/) (see below).
-- **Phase 1 — Client library**: implemented in C# (`XPlaneRestClient`, `XPlaneWebSocketSession`) and preserved in Python under `archived/python`.
+- **Phase 0 — PoC**: superseded for **connectivity** by the C# server.
+- **Phase 1 — Client library**: implemented in C# (`XPlaneRestClient`, `XPlaneWebSocketSession`); Python [`XPlaneHttpClient`](python/src/xplane_mcp/xplane_client.py) remains for pytest only.
 - **Phase 2 — MCP surface**: **stdio MCP tools** implemented in [`XPlaneMcpTools`](src/XPlaneMcp.Server/XPlaneMcpTools.cs) (capabilities, flight, datarefs, commands, failures, `get_state`, etc.).
 - **Phase 3 — Quality**: `dotnet test` + pytest; integration tests marked `integration`.
 
@@ -145,24 +145,10 @@ Taskfile.yml / Makefile    # .NET + integration pytest (not archived Python)
 | Area | Choice |
 |------|--------|
 | MCP server | C# / **net9.0**, [ModelContextProtocol](https://www.nuget.org/packages/ModelContextProtocol) |
-| Archived reference | Python 3.11+ under `archived/python/` |
+| Integration client | Python 3.11+; [`python/src/xplane_mcp`](python/src/xplane_mcp/) (pytest `PYTHONPATH`) |
 | Tests | **xUnit** (.NET), **pytest** (integration + smoke) |
-| Tasks | [Task](https://taskfile.dev/) (`task …`), **Make** / **make.ps1** at repo root; **separate** Taskfile/Makefile in `archived/python/` |
+| Tasks | [Task](https://taskfile.dev/) (`task …`), **Make** / **make.ps1** at repo root |
 | Commits | [Conventional Commits](https://www.conventionalcommits.org/) (see below) |
-
-## Archived Python (PoC and unit tests)
-
-From [`archived/python/`](archived/python/):
-
-```bash
-cd archived/python
-task install
-task test
-task mcp -- --skip-flight
-# or: make / make.ps1 with the same targets
-```
-
-Paths in the archived README-style commands refer to modules under `archived/python/src/xplane_mcp/` (`xplane_client.py`, `mcp_server.py`, `poc.py`, …).
 
 ## Integration tests (repo root)
 

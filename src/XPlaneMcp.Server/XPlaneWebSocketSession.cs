@@ -6,7 +6,7 @@ using System.Text.Json.Nodes;
 
 namespace XPlaneMcp.Server;
 
-/// <summary>Minimal WebSocket session for X-Plane streaming (mirrors archived Python <c>XPlaneWebSocketClient</c>).</summary>
+/// <summary>Minimal WebSocket session for X-Plane streaming dataref updates.</summary>
 public sealed class XPlaneWebSocketSession : IAsyncDisposable
 {
     private readonly ClientWebSocket _ws = new();

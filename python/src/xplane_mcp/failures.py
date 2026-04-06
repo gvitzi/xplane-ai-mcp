@@ -3,9 +3,9 @@
 Writable failure state is usually exposed under ``sim/operation/failures/...``.
 Values are aircraft- and dataref-specific (often integer enums: off / fail / stuck).
 
-Use :meth:`xplane_mcp.xplane_client.XPlaneHttpClient.set_dataref_value_by_name` or
-:class:`xplane_mcp.mcp_server.XPlaneMCPServer.set_failure_dataref` after resolving
-exact names in the Dataref browser or X-Plane documentation for your aircraft.
+Use :meth:`xplane_mcp.xplane_client.XPlaneHttpClient.set_dataref_value_by_name` or the
+C# MCP ``set_failure_dataref`` tool after resolving exact names in the Dataref browser
+or X-Plane documentation for your aircraft.
 """
 
 from __future__ import annotations

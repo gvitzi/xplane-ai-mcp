@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace XPlaneMcp.Server;
 
-/// <summary>High-level operations for MCP tools (mirrors archived Python <c>XPlaneMCPServer</c>).</summary>
+/// <summary>High-level operations for MCP tools.</summary>
 public sealed class XPlaneMcpService(XPlaneRestClient http, XPlaneConfig config)
 {
     private readonly XPlaneRestClient _http = http;
@@ -46,7 +46,7 @@ public sealed class XPlaneMcpService(XPlaneRestClient http, XPlaneConfig config)
             }
             catch (XPlaneApiException)
             {
-                // fall through like Python bare except
+                // Ignore lookup failure; fall back to listing datarefs below.
             }
         }
 

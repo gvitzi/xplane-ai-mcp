@@ -1,9 +1,0 @@
-{
-  "ramp_start": {
-    "airport_id": "KPDX",
-    "ramp": "A1"
-  },
-  "aircraft": {
-    "path": "Aircraft/Laminar Research/Boeing 737-800/b738.acf"
-  }
-}

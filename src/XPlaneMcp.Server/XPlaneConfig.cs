@@ -8,7 +8,7 @@ public sealed record XPlaneConfig(
 {
     public string CapabilitiesUrl => $"http://{Host}:{Port}/api/capabilities";
 
-    /// <summary>Base URL for API v3 REST calls, without trailing slash (same as Python).</summary>
+    /// <summary>Base URL for API v3 REST calls, without trailing slash.</summary>
     public string RestBaseUrl => $"http://{Host}:{Port}/api/v3";
 
     public string WebSocketUrl => $"ws://{Host}:{Port}/api/v3";

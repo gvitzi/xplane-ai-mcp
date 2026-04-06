@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace XPlaneMcp.Server;
 
-/// <summary>REST client for X-Plane local Web API v3 (mirrors archived Python <c>XPlaneHttpClient</c>).</summary>
+/// <summary>REST client for X-Plane local Web API v3.</summary>
 public sealed class XPlaneRestClient : IDisposable
 {
     private readonly HttpClient _http;

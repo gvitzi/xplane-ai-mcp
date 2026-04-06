@@ -1,5 +1,4 @@
 # Repo root — .NET MCP server + integration pytest.
-# Archived Python PoC: cd archived/python; .\make.ps1 …
 #
 # Examples:
 #   .\make.ps1 test -- -v
@@ -45,7 +44,6 @@ switch ($target) {
         Write-Host '  .\make.ps1 test-integration     pytest -m integration (flags after --)'
         Write-Host '  .\make.ps1 run / mcp            dotnet run MCP server'
         Write-Host '  .\make.ps1 publish              scripts/publish-server.ps1'
-        Write-Host 'Python PoC: cd archived/python; .\make.ps1 mcp -- --skip-flight'
     }
     'install' {
         dotnet restore $sln
