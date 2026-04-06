@@ -47,27 +47,6 @@ public sealed class XPlaneRestClient : IDisposable
         return await ParseResponseAsync(response, allowEmpty: true, cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<JsonElement> MovePlaneToAirportAsync(string airportId, string ramp = "A1", CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(airportId))
-            throw new ArgumentException("airport_id is required", nameof(airportId));
-        var aircraft = await GetCurrentAircraftAsync(cancellationToken).ConfigureAwait(false);
-        var flight = new Dictionary<string, object?>
-        {
-            ["ramp_start"] = new Dictionary<string, object?>
-            {
-                ["airport_id"] = airportId.ToUpperInvariant(),
-                ["ramp"] = ramp,
-            },
-            ["aircraft"] = new Dictionary<string, object?> { ["path"] = aircraft.Path },
-        };
-        if (!string.IsNullOrEmpty(aircraft.Livery))
-            ((Dictionary<string, object?>)flight["aircraft"]!)["livery"] = aircraft.Livery;
-
-        var json = JsonSerializer.SerializeToElement(flight);
-        return await StartFlightAsync(json, cancellationToken).ConfigureAwait(false);
-    }
-
     public async Task<JsonElement> ChangePlaneModelAsync(string aircraftPath, string? livery = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(aircraftPath))
@@ -109,6 +88,66 @@ public sealed class XPlaneRestClient : IDisposable
 
         return list;
     }
+
+    /// <summary>
+    /// Lists livery subfolders under each aircraft's <c>liveries</c> directory (next to the <c>.acf</c>).
+    /// Optional <paramref name="aircraftPathFilter"/> is a sim-root-relative path to one <c>.acf</c> (forward slashes).
+    /// </summary>
+    public IReadOnlyList<XPlaneAircraftWithLiveries> ListAircraftLiveries(string? aircraftPathFilter = null)
+    {
+        if (string.IsNullOrEmpty(_config.XPlaneRoot))
+            return [];
+
+        var root = new DirectoryInfo(_config.XPlaneRoot);
+        var aircraftRoot = new DirectoryInfo(Path.Combine(root.FullName, "Aircraft"));
+        if (!aircraftRoot.Exists)
+            throw new InvalidOperationException($"Aircraft directory not found: {aircraftRoot.FullName}");
+
+        var normalizedFilter = string.IsNullOrWhiteSpace(aircraftPathFilter)
+            ? null
+            : NormalizeSimRelativePath(aircraftPathFilter);
+
+        var result = new List<XPlaneAircraftWithLiveries>();
+        foreach (var file in aircraftRoot.EnumerateFiles("*.acf", SearchOption.AllDirectories).OrderBy(f => f.FullName, StringComparer.OrdinalIgnoreCase))
+        {
+            var rel = NormalizeSimRelativePath(Path.GetRelativePath(root.FullName, file.FullName));
+            if (normalizedFilter is not null &&
+                !rel.Equals(normalizedFilter, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var dir = file.DirectoryName;
+            if (string.IsNullOrEmpty(dir))
+                continue;
+
+            var displayName = Path.GetFileNameWithoutExtension(file.Name).Replace('_', ' ');
+            var liveries = EnumerateLiveriesUnderAircraft(root.FullName, dir);
+            result.Add(new XPlaneAircraftWithLiveries(displayName, rel, liveries));
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<XPlaneLiveryInfo> EnumerateLiveriesUnderAircraft(string xplaneRootFull, string aircraftFolderFull)
+    {
+        var liveriesDir = Path.Combine(aircraftFolderFull, "liveries");
+        if (!Directory.Exists(liveriesDir))
+            return [];
+
+        var list = new List<XPlaneLiveryInfo>();
+        foreach (var sub in Directory.EnumerateDirectories(liveriesDir).OrderBy(d => d, StringComparer.OrdinalIgnoreCase))
+        {
+            var name = Path.GetFileName(sub);
+            if (string.IsNullOrEmpty(name))
+                continue;
+            var rel = NormalizeSimRelativePath(Path.GetRelativePath(xplaneRootFull, sub));
+            list.Add(new XPlaneLiveryInfo(name, rel));
+        }
+
+        return list;
+    }
+
+    private static string NormalizeSimRelativePath(string path) =>
+        path.Trim().Replace('\\', '/').TrimStart('/');
 
     public async Task<JsonElement> FindDatarefAsync(string name, CancellationToken cancellationToken = default)
     {
@@ -194,19 +233,6 @@ public sealed class XPlaneRestClient : IDisposable
         var id = cmd.GetProperty("id").ToString();
         await ActivateCommandAsync(id, duration, cancellationToken).ConfigureAwait(false);
         return cmd;
-    }
-
-    public async Task<XPlaneAircraft> GetCurrentAircraftAsync(CancellationToken cancellationToken = default)
-    {
-        var pathDr = await FindDatarefAsync("sim/aircraft/view/acf_relative_path", cancellationToken).ConfigureAwait(false);
-        var livDr = await FindDatarefAsync("sim/aircraft/view/acf_livery_path", cancellationToken).ConfigureAwait(false);
-        var pathVal = await GetDatarefValueAsync(pathDr.GetProperty("id").ToString(), null, cancellationToken).ConfigureAwait(false);
-        var livVal = await GetDatarefValueAsync(livDr.GetProperty("id").ToString(), null, cancellationToken).ConfigureAwait(false);
-        var path = DecodeDatarefData(pathVal.TryGetProperty("data", out var pd) ? pd : default);
-        if (string.IsNullOrEmpty(path))
-            throw new XPlaneApiException("Current aircraft path is unavailable", responseBody: pathVal.GetRawText());
-        var livery = DecodeDatarefData(livVal.TryGetProperty("data", out var ld) ? ld : default);
-        return new XPlaneAircraft(path, string.IsNullOrEmpty(livery) ? null : livery);
     }
 
     public async Task<XPlanePosition> GetCurrentPositionAsync(CancellationToken cancellationToken = default)
@@ -336,8 +362,10 @@ public sealed class XPlaneRestClient : IDisposable
     }
 }
 
-public readonly record struct XPlaneAircraft(string Path, string? Livery);
-
 public readonly record struct XPlanePosition(double Latitude, double Longitude, double HeadingTrue);
 
 public readonly record struct XPlaneAircraftModel(string Name, string Path);
+
+public readonly record struct XPlaneLiveryInfo(string Name, string Path);
+
+public readonly record struct XPlaneAircraftWithLiveries(string Name, string Path, IReadOnlyList<XPlaneLiveryInfo> Liveries);

@@ -19,10 +19,10 @@ Starting or updating flights, airports, and aircraft.
 
 | Tool | Description |
 |------|-------------|
-| `start_flight` | `POST /api/v3/flight` — `flight_json` is the inner API `data` object (e.g. ramp/runway start, aircraft). |
-| `patch_flight` | `PATCH /api/v3/flight` — `flight_json` is the API `data` object as JSON. |
-| `move_plane_to_airport` | Starts a flight at an ICAO airport using the **current** aircraft from the sim (`airport_id`, `ramp`). |
-| `list_available_planes` | Lists installed `.acf` aircraft under `XPLANE_ROOT/Aircraft` (needs `XPLANE_ROOT` env; empty if unset). |
+| `start_flight` | `POST /api/v3/flight` — `flight_json` is the inner API `data` object ([Flight Initialization API](https://developer.x-plane.com/article/flight-initialization-api/)). Put **`aircraft`** and **exactly one** of **`ramp_start`**, **`runway_start`**, **`lle_ground_start`**, **`lle_air_start`**, or **`boat_start`** as top-level keys in that JSON (same nested shapes as X-Plane). Optional keys: weather, time, weight, etc. |
+| `patch_flight` | `PATCH /api/v3/flight` — partial `data` merge. **X-Plane does not allow start-location keys on PATCH** (`lle_ground_start`, `lle_air_start`, `runway_start`, `ramp_start`, `boat_start` → HTTP 400 *invalid to specify a start*). Use `start_flight` (POST) to set lat/lon/altitude via `lle_*`. |
+| `list_available_planes` | Lists installed `.acf` aircraft under `XPLANE_ROOT/Aircraft` (needs `XPLANE_ROOT` env). Returns MCP **structured** `{ "aircraft": [ { "name", "path" } ] }` (empty `aircraft` if unset). |
+| `list_aircraft_liveries` | Scans each aircraft’s `liveries/` folder under `XPLANE_ROOT/Aircraft`. Optional `aircraft_path` filters to one `.acf`. Structured `{ "aircraft": [ { "name", "path", "liveries": [ { "name", "path" } ] } ] }`; use `liveries[].name` for `aircraft.livery`. |
 | `change_plane_model` | Swaps the loaded aircraft via flight init while keeping position/heading (`aircraft_path`, optional `livery`). |
 
 ## Datarefs operations

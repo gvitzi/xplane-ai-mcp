@@ -43,22 +43,22 @@ def read_one_message(stream: Any) -> dict[str, Any]:
 
 
 def default_mcp_server_argv(repo_root: Path) -> list[str] | None:
-    """Prefer Release build, then Debug; then ``dotnet`` + DLL."""
+    """Prefer ``bin/Release`` (latest ``dotnet build``), then Debug, published artifacts, then ``dotnet`` + DLL."""
     candidates: list[Path] = []
     if os.name == "nt":
         candidates.extend(
             [
-                repo_root / "artifacts/xplane-mcp/XPlaneMcp.Server.exe",
                 repo_root / "src/XPlaneMcp.Server/bin/Release/net9.0/XPlaneMcp.Server.exe",
                 repo_root / "src/XPlaneMcp.Server/bin/Debug/net9.0/XPlaneMcp.Server.exe",
+                repo_root / "artifacts/xplane-mcp/XPlaneMcp.Server.exe",
             ]
         )
     else:
         candidates.extend(
             [
-                repo_root / "artifacts/xplane-mcp/XPlaneMcp.Server",
                 repo_root / "src/XPlaneMcp.Server/bin/Release/net9.0/XPlaneMcp.Server",
                 repo_root / "src/XPlaneMcp.Server/bin/Debug/net9.0/XPlaneMcp.Server",
+                repo_root / "artifacts/xplane-mcp/XPlaneMcp.Server",
             ]
         )
     for exe in candidates:
@@ -149,11 +149,15 @@ class McpStdioSession:
             raise McpToolError(f"tools/call: expected object result, got {result!r}")
         if result.get("isError"):
             parts = self._text_blocks(result)
-            raise McpToolError(parts or json.dumps(result))
+            msg = "\n".join(parts) if parts else json.dumps(result)
+            raise McpToolError(msg)
         parts = self._text_blocks(result)
-        if not parts:
-            raise McpToolError(f"no text content in tool result: {result!r}")
-        return "\n".join(parts)
+        if parts:
+            return "\n".join(parts)
+        structured = result.get("structuredContent")
+        if structured is not None:
+            return json.dumps(structured, ensure_ascii=False)
+        raise McpToolError(f"no text or structured content in tool result: {result!r}")
 
     @staticmethod
     def _text_blocks(result: dict[str, Any]) -> list[str]:

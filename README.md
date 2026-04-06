@@ -115,6 +115,8 @@ These assume the assistant can call your X-Plane MCP tools (wording can be adapt
 
 - “What are my current latitude, longitude, and indicated airspeed from the simulator?”
 - “Start a new flight at **KPDX** ramp **A1** with the current aircraft (or tell me if the API needs an explicit aircraft path).”
+- “Start a flight with **`start_flight`**: pass **`flight_json`** as the inner `data` object from the [Flight Initialization API](https://developer.x-plane.com/article/flight-initialization-api/) — include **`aircraft`** and exactly one of **`ramp_start`**, **`runway_start`**, **`lle_ground_start`**, **`lle_air_start`**, or **`boat_start`** as top-level keys.”
+- “Relocate with **`start_flight`** (POST) using **`lle_ground_start`** or **`lle_air_start`** in `flight_json` exactly as in the [Flight Initialization API](https://developer.x-plane.com/article/flight-initialization-api/) (same field names as X-Plane). **`patch_flight`** cannot change start location — X-Plane returns *invalid to specify a start*.”
 - “Resolve the dataref for outside air temperature, read its value, and report it with units.”
 - “For a training scenario, trigger a **complete failure on engine 1** via the failure datarefs, then summarize how I would clear it in X-Plane.”
 

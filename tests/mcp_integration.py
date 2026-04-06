@@ -230,9 +230,16 @@ def mcp_list_available_plane_paths(session: McpStdioSession) -> set[str]:
     raw = mcp_tool_json(session, "list_available_planes", {})
     if not raw:
         return set()
+    items: list[Any]
+    if isinstance(raw, dict) and "aircraft" in raw:
+        items = raw["aircraft"] if isinstance(raw["aircraft"], list) else []
+    elif isinstance(raw, list):
+        items = raw
+    else:
+        return set()
     paths: set[str] = set()
-    for item in raw:
-        if isinstance(item, dict) and (p := item.get("Path")):
+    for item in items:
+        if isinstance(item, dict) and (p := item.get("path") or item.get("Path")):
             paths.add(str(p))
     return paths
 

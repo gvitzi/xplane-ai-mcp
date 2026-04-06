@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using ModelContextProtocol;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
 namespace XPlaneMcp.Server;
@@ -68,9 +69,14 @@ public sealed class XPlaneMcpTools(XPlaneMcpService svc)
             return Json(el);
         }, cancellationToken);
 
-    [McpServerTool, Description("POST /api/v3/flight — start a flight. flight_json must be the inner `data` object as JSON (e.g. ramp_start, aircraft).")]
+    [McpServerTool, Description(
+        "POST /api/v3/flight — start a new flight. flight_json is the inner `data` object (Flight Initialization API). " +
+        "Include `aircraft` { path, optional livery } and exactly one start-location object as a top-level key: " +
+        "ramp_start, runway_start, lle_ground_start, lle_air_start, or boat_start (same nested field names as X-Plane). " +
+        "You may add optional keys (weather, time, weight, engine_status, etc.) per the same API. " +
+        "lle_air_start requires a speed field: speed_in_meters_per_second and/or speed_enum or speed_mode depending on X-Plane version.")]
     public Task<string> StartFlight(
-        [Description("JSON object matching X-Plane flight init `data`")] string flight_json,
+        [Description("Inner `data` JSON (X-Plane Flight Initialization API)")] string flight_json,
         CancellationToken cancellationToken = default) =>
         RunToolAsync(async () =>
         {
@@ -79,9 +85,13 @@ public sealed class XPlaneMcpTools(XPlaneMcpService svc)
             return Json(el);
         }, cancellationToken);
 
-    [McpServerTool, Description("PATCH /api/v3/flight — update current flight. flight_json is the `data` object as JSON.")]
+    [McpServerTool, Description(
+        "PATCH /api/v3/flight — merge partial flight `data` into the current flight. " +
+        "X-Plane rejects any start-location keys on PATCH (lle_ground_start, lle_air_start, runway_start, ramp_start, boat_start): " +
+        "\"invalid to specify a start\". Relocate with start_flight (POST) using `aircraft` plus exactly one of lle_ground_start or lle_air_start (or runway/ramp/boat). " +
+        "PATCH is for other init fields (e.g. weather, time, weight) where supported.")]
     public Task<string> PatchFlight(
-        [Description("JSON object matching X-Plane flight patch `data`")] string flight_json,
+        [Description("Partial inner `data` JSON — do not include start keys (lle_*, runway_start, ramp_start, boat_start); use start_flight to relocate")] string flight_json,
         CancellationToken cancellationToken = default) =>
         RunToolAsync(async () =>
         {
@@ -90,21 +100,73 @@ public sealed class XPlaneMcpTools(XPlaneMcpService svc)
             return Json(el);
         }, cancellationToken);
 
-    [McpServerTool, Description("Start a new flight at an ICAO airport using the current aircraft (reads aircraft path from the sim).")]
-    public Task<string> MovePlaneToAirport(
-        string airport_id,
-        string ramp = "A1",
-        CancellationToken cancellationToken = default) =>
-        RunToolAsync(async () =>
-        {
-            var el = await svc.MovePlaneToAirportAsync(airport_id, ramp, cancellationToken).ConfigureAwait(false);
-            return Json(el);
-        }, cancellationToken);
+    [McpServerTool, Description(
+        "List installed aircraft (.acf) under XPLANE_ROOT/Aircraft. Requires XPLANE_ROOT env var. " +
+        "Structured result: { aircraft: [ { name, path } ] } (empty aircraft if XPLANE_ROOT unset).")]
+    public Task<CallToolResult> ListAvailablePlanes() =>
+        Task.FromResult(ListAvailablePlanesCore());
 
-    [McpServerTool, Description("List installed aircraft (.acf) under XPLANE_ROOT/Aircraft. Requires XPLANE_ROOT env var; returns [] if unset.")]
-    public Task<string> ListAvailablePlanes() =>
-        Task.FromResult(RunToolSync(() =>
-            Json(svc.ListAvailablePlanes().Select(p => new { p.Name, p.Path }))));
+    private CallToolResult ListAvailablePlanesCore()
+    {
+        try
+        {
+            var aircraft = svc.ListAvailablePlanes().Select(p => new { name = p.Name, path = p.Path }).ToList();
+            return new CallToolResult
+            {
+                StructuredContent = JsonSerializer.SerializeToElement(new { aircraft }),
+            };
+        }
+        catch (McpProtocolException)
+        {
+            throw;
+        }
+        catch (McpException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new McpException(XPlaneMcpToolErrors.Format(ex), ex);
+        }
+    }
+
+    [McpServerTool, Description(
+        "Scan XPLANE_ROOT/Aircraft: for each .acf, list subfolders of acf_dir/liveries/ (X-Plane livery packs). " +
+        "Optional aircraft_path limits to one sim-root-relative .acf path (forward slashes, same as list_available_planes path). " +
+        "Use liveries[].name as aircraft.livery in flight init / change_plane_model. " +
+        "Structured result: { aircraft: [ { name, path, liveries: [ { name, path } ] } ] }. Empty aircraft if XPLANE_ROOT unset.")]
+    public Task<CallToolResult> ListAircraftLiveries(
+        [Description("Optional sim-root-relative path to one .acf; omit to scan all aircraft")] string? aircraft_path = null) =>
+        Task.FromResult(ListAircraftLiveriesCore(aircraft_path));
+
+    private CallToolResult ListAircraftLiveriesCore(string? aircraft_path)
+    {
+        try
+        {
+            var aircraft = svc.ListAircraftLiveries(aircraft_path).Select(a => new
+            {
+                name = a.Name,
+                path = a.Path,
+                liveries = a.Liveries.Select(l => new { name = l.Name, path = l.Path }).ToList(),
+            }).ToList();
+            return new CallToolResult
+            {
+                StructuredContent = JsonSerializer.SerializeToElement(new { aircraft }),
+            };
+        }
+        catch (McpProtocolException)
+        {
+            throw;
+        }
+        catch (McpException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new McpException(XPlaneMcpToolErrors.Format(ex), ex);
+        }
+    }
 
     [McpServerTool, Description(
         "Return a hardcoded list of X-Plane 12 Laminar stock aircraft paths (relative to the sim root) for flight API aircraft.path. " +

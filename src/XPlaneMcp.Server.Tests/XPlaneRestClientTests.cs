@@ -149,4 +149,55 @@ public sealed class XPlaneRestClientTests
         var s = XPlaneRestClient.DecodeDatarefData(doc.RootElement.GetProperty("data"));
         Assert.Equal("Aircraft/Test.acf", s);
     }
+
+    [Fact]
+    public void ListAircraftLiveries_returns_empty_when_xplane_root_unset()
+    {
+        var cfg = new XPlaneConfig();
+        using var http = new HttpClient(new StubHandler(_ => throw new InvalidOperationException())) { BaseAddress = cfg.RestBaseUri };
+        using var client = new XPlaneRestClient(http, cfg, ownsClient: true);
+        Assert.Empty(client.ListAircraftLiveries());
+    }
+
+    [Fact]
+    public void ListAircraftLiveries_finds_livery_folders_and_filters_by_acf_path()
+    {
+        var tmp = Directory.CreateTempSubdirectory("xplane_liv_");
+        try
+        {
+            var acfDir = Path.Combine(tmp.FullName, "Aircraft", "Mfr", "My Plane");
+            Directory.CreateDirectory(Path.Combine(acfDir, "liveries", "N100"));
+            Directory.CreateDirectory(Path.Combine(acfDir, "liveries", "N200"));
+            File.WriteAllText(Path.Combine(acfDir, "My_Plane.acf"), "");
+            var bare = Path.Combine(tmp.FullName, "Aircraft", "Solo");
+            Directory.CreateDirectory(bare);
+            File.WriteAllText(Path.Combine(bare, "Solo.acf"), "");
+
+            var cfg = new XPlaneConfig(XPlaneRoot: tmp.FullName);
+            using var http = new HttpClient(new StubHandler(_ => throw new InvalidOperationException())) { BaseAddress = cfg.RestBaseUri };
+            using var client = new XPlaneRestClient(http, cfg, ownsClient: true);
+
+            var all = client.ListAircraftLiveries(null);
+            Assert.Equal(2, all.Count);
+            var my = Assert.Single(all, a => a.Path.EndsWith("My_Plane.acf", StringComparison.OrdinalIgnoreCase));
+            Assert.Equal("My Plane", my.Name);
+            Assert.Equal(2, my.Liveries.Count);
+            Assert.Contains(my.Liveries, l => l.Name == "N100");
+            Assert.Contains(my.Liveries, l => l.Name == "N200");
+            Assert.All(my.Liveries, l => Assert.StartsWith("Aircraft/", l.Path, StringComparison.Ordinal));
+
+            var solo = Assert.Single(all, a => a.Path.EndsWith("Solo.acf", StringComparison.OrdinalIgnoreCase));
+            Assert.Empty(solo.Liveries);
+
+            var filtered = client.ListAircraftLiveries(@"Aircraft\Mfr\My Plane\My_Plane.acf");
+            var one = Assert.Single(filtered);
+            Assert.Equal(2, one.Liveries.Count);
+
+            Assert.Empty(client.ListAircraftLiveries("Aircraft/Missing.acf"));
+        }
+        finally
+        {
+            tmp.Delete(true);
+        }
+    }
 }
