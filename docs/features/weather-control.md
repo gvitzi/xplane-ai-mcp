@@ -63,8 +63,8 @@ If this feature is pursued later, the likely structure is:
 
 ```text
 docs/features/weather-control.md
-python/src/xplane_mcp/weather_client.py
-python/src/xplane_mcp/plugin_bridge_client.py
+tests/weather_client.py
+tests/weather_bridge_client.py
 plugins/xplane-weather-bridge/
 tests/test_weather_client.py
 tests/test_weather_integration.py

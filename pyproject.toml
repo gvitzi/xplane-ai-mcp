@@ -5,24 +5,22 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "xplane-ai-mcp-workspace"
 version = "0.2.0"
-description = "Repo-root dev deps and pytest config; MCP server is .NET (see src/XPlaneMcp.Server). Editable install exposes python/src/xplane_mcp."
+description = "Repo-root pytest and dev metadata; MCP server is .NET (see src/XPlaneMcp.Server)."
 requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0",
-  "httpx>=0.27",
-  "websockets>=12.0",
 ]
 
-[tool.setuptools.packages.find]
-where = ["python/src"]
+[tool.setuptools]
+packages = []
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["python/src"]
+pythonpath = ["tests"]
 addopts = ["-m", "not integration"]
 markers = [
-  "integration: live tests against a running X-Plane instance; run with: pytest -m integration --xplane-root=PATH",
+  "integration: live tests via MCP stdio + X-Plane; run with: pytest -m integration --xplane-root=PATH [--mcp-server=EXE]",
 ]

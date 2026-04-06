@@ -25,7 +25,7 @@ tasks:
       - dotnet build "{{.DOTNET_SLN}}" -c Debug
 
   install-py-dev:
-    desc: pip install -e ".[dev]" at repo root (pytest + httpx + websockets)
+    desc: pip install -e ".[dev]" at repo root (pytest only)
     cmds:
       - pip install -e ".[dev]"
 
@@ -59,3 +59,8 @@ tasks:
     desc: Publish using scripts/publish-server.sh (Git Bash / Unix)
     cmds:
       - bash "{{.TASKFILE_DIR}}/scripts/publish-server.sh" {{.CLI_ARGS}}
+
+  msi:
+    desc: Build WiX MSI (self-contained win-x64) to artifacts/installer/xplaneMCP.msi
+    cmds:
+      - powershell -NoProfile -ExecutionPolicy Bypass -File "{{.TASKFILE_DIR}}/scripts/build-msi.ps1" {{.CLI_ARGS}}

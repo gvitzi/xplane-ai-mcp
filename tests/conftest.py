@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
 
-from xplane_mcp.xplane_client import XPlaneConfig
+from mcp_stdio import McpServerLaunch, default_mcp_server_argv, start_mcp_session
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -13,6 +14,15 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         action="store",
         default=None,
         help="Path to X-Plane installation (required for integration tests).",
+    )
+    parser.addoption(
+        "--mcp-server",
+        action="store",
+        default=None,
+        help=(
+            "Path to XPlaneMcp.Server executable (or `dotnet` + DLL as one argv string is not supported; "
+            "pass a single .exe or native binary path). Default: auto-detect Release/Debug build under src/."
+        ),
     )
     parser.addoption(
         "--xplane-host",
@@ -32,7 +42,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         action="store",
         default=60.0,
         type=float,
-        help="HTTP timeout in seconds (default: 60).",
+        help="HTTP timeout in seconds for the MCP server → X-Plane client (default: 60).",
     )
     parser.addoption(
         "--xplane-test-airport",
@@ -68,19 +78,42 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 @pytest.fixture
-def xplane_integration_config(request: pytest.FixtureRequest) -> XPlaneConfig:
+def xplane_root(request: pytest.FixtureRequest) -> Path:
     raw_root = request.config.getoption("--xplane-root")
     if not raw_root:
         pytest.skip("Pass --xplane-root=PATH to your X-Plane installation.")
     root = Path(raw_root)
     if not root.exists():
         pytest.skip(f"--xplane-root does not exist: {root}")
-    return XPlaneConfig(
-        host=request.config.getoption("--xplane-host"),
-        port=request.config.getoption("--xplane-port"),
-        timeout=request.config.getoption("--xplane-timeout"),
-        xplane_root=root,
-    )
+    return root
+
+
+@pytest.fixture
+def mcp_stdio_session(request: pytest.FixtureRequest, xplane_root: Path):
+    """Spawn the C# MCP server (stdio) with XPLANE_* env; yield session; terminate process."""
+    repo_root = Path(request.config.rootpath)
+    custom = request.config.getoption("--mcp-server")
+    if custom:
+        argv = [custom.strip()]
+    else:
+        argv = default_mcp_server_argv(repo_root)
+    if not argv:
+        pytest.skip(
+            "MCP server not found. Build with `dotnet build -c Release` or pass "
+            "`--mcp-server=PATH` to XPlaneMcp.Server.exe."
+        )
+
+    env = os.environ.copy()
+    env["XPLANE_HOST"] = str(request.config.getoption("--xplane-host"))
+    env["XPLANE_PORT"] = str(request.config.getoption("--xplane-port"))
+    env["XPLANE_TIMEOUT"] = str(request.config.getoption("--xplane-timeout"))
+    env["XPLANE_ROOT"] = str(xplane_root)
+
+    session = start_mcp_session(McpServerLaunch(argv=argv, cwd=repo_root, env=env))
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 @pytest.fixture

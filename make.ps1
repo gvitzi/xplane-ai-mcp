@@ -44,6 +44,7 @@ switch ($target) {
         Write-Host '  .\make.ps1 test-integration     pytest -m integration (flags after --)'
         Write-Host '  .\make.ps1 run / mcp            dotnet run MCP server'
         Write-Host '  .\make.ps1 publish              scripts/publish-server.ps1'
+        Write-Host '  .\make.ps1 msi                  WiX MSI -> artifacts/installer/xplaneMCP.msi'
     }
     'install' {
         dotnet restore $sln
@@ -83,7 +84,11 @@ switch ($target) {
     'publish' {
         Invoke-Publish
     }
+    'msi' {
+        $script = Join-Path $repo 'scripts/build-msi.ps1'
+        & powershell -NoProfile -ExecutionPolicy Bypass -File $script @pass
+    }
     default {
-        Write-Error "Unknown target '$target'. Use: install, test, run, mcp, publish, or help."
+        Write-Error "Unknown target '$target'. Use: install, test, run, mcp, publish, msi, or help."
     }
 }

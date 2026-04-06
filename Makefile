@@ -1,6 +1,6 @@
 # Requires GNU Make (e.g. chocolatey make, Git Bash, or WSL on Windows).
 # On Windows without make:  .\make.ps1   or   make.cmd test -- -v
-.PHONY: help install install-dotnet install-py-dev test test-integration run mcp publish publish-sh
+.PHONY: help install install-dotnet install-py-dev test test-integration run mcp publish publish-sh msi
 
 PYTHON ?= python
 PIP ?= pip
@@ -16,8 +16,9 @@ help:
 	@echo "  make test                 dotnet test + pytest (default excludes integration)"
 	@echo "  make test-integration     pytest -m integration (pass PYTEST_ARGS or extra args)"
 	@echo "  make run / make mcp       dotnet run MCP stdio server"
-	@echo "  make publish              pwsh scripts/publish-server.ps1"
+	@echo "  make publish              powershell scripts/publish-server.ps1"
 	@echo "  make publish-sh           bash scripts/publish-server.sh"
+	@echo "  make msi                  WiX MSI -> artifacts/installer/xplaneMCP.msi"
 
 install:
 	dotnet restore "$(DOTNET_SLN)"
@@ -48,3 +49,6 @@ publish:
 
 publish-sh:
 	bash "$(CURDIR)/scripts/publish-server.sh"
+
+msi:
+	powershell -NoProfile -ExecutionPolicy Bypass -File "$(CURDIR)/scripts/build-msi.ps1"
