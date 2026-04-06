@@ -2,72 +2,28 @@
 
 An [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that lets local AI assistants (for example OpenAI Codex in the editor) read simulator state from **X-Plane 12** and send commands, using X-Plane’s built-in **local Web API** (REST + WebSocket).
 
-The **supported MCP server** is implemented in **C#** ([ModelContextProtocol](https://www.nuget.org/packages/ModelContextProtocol) SDK, **stdio** transport). **Live integration tests** in [`tests/`](tests/) spawn the built MCP server as a subprocess, speak MCP over **stdin/stdout** (newline-delimited JSON), and drive X-Plane through the same tools an AI client would use—no separate HTTP test client.
+## User Guide
 
-## Quick usage guide
+### Requirements
 
-### Prerequisites
+| Item | Requirements | Notes | 
+|------|--------------|-------|
+| AI Agent | **OpenAI Codex**, **Claude Code**, **Cursor**, or another editor or CLI that speaks MCP | A **local** MCP-capable client must run this server over **stdio** and expose its tools to the model. The executable alone is not a standalone chat UI. |
+| X-Plane | 12.1.1+ | **12.1.1+** for datarefs over HTTP/WebSocket; **12.4.0+** for `POST /flight` and `PATCH /flight` ([flight init API](https://developer.x-plane.com/article/x-plane-web-api/#Start_a_flight_v3)) |
 
-- **X-Plane 12** running with the **local Web API** enabled (default `http://127.0.0.1:8086`). The session must allow incoming API traffic (see [Requirements](#requirements)).
-- **[.NET SDK](https://dotnet.microsoft.com/download)** **9.0+** (solution targets `net9.0`) to build and run the MCP server.
-- **Python 3.11+** only if you run **repo-root pytest** (unit-style helpers under `tests/` plus optional integration runs).
+### Quick Start
 
-### Install (repo root)
+#### 1. Download and install the xplaneMCP
+TBD - link to executable
 
-```bash
-task install
-# or: make install   /   .\make.ps1 install
-```
+#### 2. Confiugure your AI Agent
 
-This restores and builds [`src/XPlaneMcp.sln`](src/XPlaneMcp.sln) and `pip install -e ".[dev]"` for pytest dependencies. Use `task install-dotnet` or `task install-py-dev` to do only one side.
+Point your MCP client at `artifacts/xplane-mcp/XPlaneMcp.Server.exe` (Windows) or run with `dotnet /path/to/XPlaneMcp.Server.dll`. see following configuration examples below:
 
-### Build and deploy (publish folder)
+<details>
+<summary><strong>Cursor</strong> (JSON)</summary>
 
-Publish a **Release** build to [`artifacts/xplane-mcp/`](artifacts/xplane-mcp/) (gitignored):
-
-```bash
-task publish
-# or: make publish   /   .\make.ps1 publish
-# Unix: task publish-sh   /   make publish-sh   /   bash scripts/publish-server.sh
-```
-
-Point your MCP client at `artifacts/xplane-mcp/XPlaneMcp.Server.exe` (Windows) or run with `dotnet /path/to/XPlaneMcp.Server.dll`.
-
-### Windows MSI (WiX)
-
-Build a **per-machine** MSI that installs a **self-contained** `win-x64` payload (no separate .NET runtime install). Output: [`artifacts/installer/xplaneMCP.msi`](artifacts/installer/xplaneMCP.msi) (gitignored).
-
-```bash
-task msi
-# or: make msi   /   .\make.ps1 msi
-# or: powershell -File scripts/build-msi.ps1
-```
-
-Prerequisites: **.NET SDK 9+** only; [WixToolset.Sdk](https://www.nuget.org/packages/WixToolset.Sdk) restores from NuGet when building [`installer/xplaneMcp.wixproj`](installer/xplaneMcp.wixproj).
-
-- **Default install directory:** `C:\Program Files\xplaneMCP\` (contains `XPlaneMcp.Server.exe` and dependencies).
-- **Interactive install:** double-click the MSI or `msiexec /i path\to\xplaneMCP.msi`
-- **Silent install:** `msiexec /i path\to\xplaneMCP.msi /qn`
-- **Upgrade:** newer MSI versions with the same `UpgradeCode` perform a major upgrade (see [`installer/Package.wxs`](installer/Package.wxs)).
-- **Version:** bump [`Directory.Build.props`](Directory.Build.props) (`Version` / assembly versions) before shipping a new MSI.
-
-**Codex / Cursor** after install — point `command` at the installed exe, for example:
-
-```json
-"command": "C:\\Program Files\\xplaneMCP\\XPlaneMcp.Server.exe",
-"args": [],
-"env": { }
-```
-
-Release builds should be **digitally signed** (`signtool sign` on the MSI); signing is not automated in this repo.
-
-### Local MCP configuration
-
-#### Cursor (JSON)
-
-Register a **stdio** MCP server. For [Cursor](https://docs.cursor.com/context/mcp), use project `.cursor/mcp.json` or **Settings → Tools & MCP**.
-
-**Published executable (recommended after `task publish`):**
+**Published executable:** save the JSON below as **`.cursor/mcp.json`** in this repo root (create the `.cursor` folder if needed), merging the `mcpServers` block with any servers you already use—or add the same server via **Cursor → Settings → Tools & MCP** (UI edits the same config at project or user scope).
 
 ```json
 {
@@ -99,17 +55,34 @@ Register a **stdio** MCP server. For [Cursor](https://docs.cursor.com/context/mc
 
 Use forward slashes in `cwd` on macOS/Linux.
 
-#### Other agents (tab-style panels)
+</details>
 
-GitHub does not render real tab controls in README files; the blocks below use **expandable panels** so you can open one agent at a time, similar to tabs. For **Codex**, merge the snippet into `%USERPROFILE%\.codex\config.toml`.
+<details>
+<summary><strong>Codex</strong> (TOML)</summary>
 
-<details open>
-<summary><strong>Codex</strong></summary>
+**Where to put it:** edit Codex’s user config file—**`%USERPROFILE%\.codex\config.toml`** on Windows or **`~/.codex/config.toml`** on macOS/Linux. Create the `.codex` folder or `config.toml` if it does not exist yet (Codex normally creates them on first setup). Paste the table below into that file, or merge it with other **`[mcp_servers.*]`** blocks you already have; each server must use a **unique** table name (here `xplaneMCP`).
+
+**Published executable:**
 
 ```toml
 [mcp_servers.xplaneMCP]
 command = 'E:/path/to/xplane-ai-mcp/artifacts/xplane-mcp/XPlaneMcp.Server.exe'
 args = []
+enabled = true
+```
+
+**Development (`dotnet run` from repo root):** use the same `[mcp_servers.xplaneMCP]` key or pick another name; point `command` at `dotnet` and pass the project via `args` (adjust the drive/path to your clone).
+
+```toml
+[mcp_servers.xplaneMCP]
+command = 'dotnet'
+args = [
+  'run',
+  '--project',
+  'E:/path/to/xplane-ai-mcp/src/XPlaneMcp.Server/XPlaneMcp.Server.csproj',
+  '-c',
+  'Release',
+]
 enabled = true
 ```
 
@@ -121,6 +94,11 @@ enabled = true
 Contribution needed here
 
 </details>
+
+When configuring through UI:
+* make sure the MCP configuration points to the correct installation directory and executable of the mcpServer
+* communincation protocl should use stdout (or Standard Output)
+* optionally add the XPLANE_ROOT="<your xplane installation directory>" as an environment varaible. this is only needed to ask AI Agent to change model to a 3rd-party aircraft.
 
 Optional **environment variables** (read by the server):
 
@@ -144,20 +122,15 @@ These assume the assistant can call your X-Plane MCP tools (wording can be adapt
 
 Official X-Plane API reference: [X-Plane local Web API](https://developer.x-plane.com/article/x-plane-web-api/#The_web_server).
 
-## Goals
+# Developers
 
-- **Read state**: aircraft, flight, and environment-related values via datarefs (and commands / flight init where the API allows).
-- **Act**: set writable datarefs, activate commands, and start or update flights (API v3+) where appropriate.
-- **Safe defaults**: assume `localhost` only, respect X-Plane network/security settings, and avoid overlapping command activations (per API notes).
+## Build
+**Release publish and MSI (PowerShell, repo root):** run both scripts to refresh the publish folder and the installer:
 
-## Requirements
-
-| Item | Notes |
-|------|--------|
-| X-Plane | 12.1.1+ for datarefs over HTTP/WebSocket; **12.4.0+** for `POST /flight` and `PATCH /flight` ([flight init API](https://developer.x-plane.com/article/x-plane-web-api/#Start_a_flight_v3)) |
-| .NET | SDK **9.0+** for the MCP server |
-| Python | 3.11+ optional (pytest; integration tests subprocess the C# MCP server) |
-| Network | API is on `http://localhost:8086` by default (WebSocket `ws://localhost:8086/api/v3`). Use `--web_server_port=` if you change the port. “Disable Incoming Traffic” returns **403** for API calls. |
+```powershell
+.\scripts\publish-server.ps1 -Configuration Release
+.\scripts\build-msi.ps1 -Configuration Release
+```
 
 ## Architecture
 
@@ -236,7 +209,7 @@ Use prefixes such as `feat:`, `fix:`, `docs:`, `test:`, `chore:`, `refactor:` wi
 
 - `feat(mcp): add dataref read tool`
 - `fix(client): handle 403 when incoming traffic disabled`
-- `docs: expand PoC checklist in README`
+- `docs: added more prompt examples in README`
 
 ## License
 
