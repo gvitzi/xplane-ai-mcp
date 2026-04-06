@@ -2,6 +2,7 @@
 
 __version__ = "0.1.0"
 
+from .failures import EXAMPLE_FAILURE_DATAREF_NAMES, FAILURE_DATAREF_PREFIX
 from .mcp_server import XPlaneMCPServer
 from .xplane_client import (
     XPlaneAircraft,
@@ -13,6 +14,8 @@ from .xplane_client import (
 )
 
 __all__ = [
+    "EXAMPLE_FAILURE_DATAREF_NAMES",
+    "FAILURE_DATAREF_PREFIX",
     "XPlaneAircraft",
     "XPlaneAircraftModel",
     "XPlaneApiError",

@@ -1,6 +1,8 @@
 version: "3"
 
 vars:
+  DOTNET_SLN: "{{.TASKFILE_DIR}}/src/XPlaneMcp.sln"
+  SERVER_PROJ: "{{.TASKFILE_DIR}}/src/XPlaneMcp.Server/XPlaneMcp.Server.csproj"
   PYTEST_ARGS: '{{.PYTEST_ARGS | default ""}}'
 
 tasks:
@@ -10,11 +12,50 @@ tasks:
       - task --list
 
   install:
-    desc: Install package and dev dependencies (editable)
+    desc: dotnet restore/build + pip install repo-root dev deps (pytest for integration)
+    cmds:
+      - dotnet restore "{{.DOTNET_SLN}}"
+      - dotnet build "{{.DOTNET_SLN}}" -c Debug
+      - pip install -e ".[dev]"
+
+  install-dotnet:
+    desc: Restore and build the .NET solution only
+    cmds:
+      - dotnet restore "{{.DOTNET_SLN}}"
+      - dotnet build "{{.DOTNET_SLN}}" -c Debug
+
+  install-py-dev:
+    desc: pip install -e ".[dev]" at repo root (pytest + httpx + websockets)
     cmds:
       - pip install -e ".[dev]"
 
   test:
-    desc: Run pytest (pass extra args after --, e.g. task test -- -v -k smoke)
+    desc: dotnet test + pytest (integration excluded by default)
     cmds:
+      - dotnet test "{{.DOTNET_SLN}}" -c Release
       - pytest {{.PYTEST_ARGS}} {{.CLI_ARGS}}
+
+  test-integration:
+    desc: Live X-Plane pytest only (requires --xplane-root=...)
+    cmds:
+      - pytest -m integration {{.CLI_ARGS}}
+
+  run:
+    desc: Run C# MCP server over stdio (for manual debugging)
+    cmds:
+      - dotnet run --project "{{.SERVER_PROJ}}" -c Release {{.CLI_ARGS}}
+
+  mcp:
+    desc: Alias — run C# MCP stdio server (same as run)
+    cmds:
+      - dotnet run --project "{{.SERVER_PROJ}}" -c Release {{.CLI_ARGS}}
+
+  publish:
+    desc: Publish Release build to artifacts/xplane-mcp (Windows PowerShell)
+    cmds:
+      - powershell -NoProfile -ExecutionPolicy Bypass -File "{{.TASKFILE_DIR}}/scripts/publish-server.ps1" {{.CLI_ARGS}}
+
+  publish-sh:
+    desc: Publish using scripts/publish-server.sh (Git Bash / Unix)
+    cmds:
+      - bash "{{.TASKFILE_DIR}}/scripts/publish-server.sh" {{.CLI_ARGS}}

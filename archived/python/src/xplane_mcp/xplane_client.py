@@ -3,12 +3,15 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 try:
     import websockets
@@ -89,6 +92,11 @@ class XPlaneHttpClient:
         client: httpx.AsyncClient | None = None,
     ) -> None:
         self.config = config or XPlaneConfig()
+        if self.config.xplane_root is None:
+            logger.warning(
+                "xplane_root is not set; list_available_planes() will return no aircraft "
+                "until the X-Plane installation path is configured."
+            )
         self._client = client or httpx.AsyncClient(
             base_url=self.config.rest_base_url,
             timeout=self.config.timeout,
@@ -192,6 +200,8 @@ class XPlaneHttpClient:
         return await self.start_flight(flight_data)
 
     def list_available_planes(self) -> list[XPlaneAircraftModel]:
+        if self.config.xplane_root is None:
+            return []
         aircraft_root = self._get_aircraft_root()
         models = [
             XPlaneAircraftModel(
@@ -236,9 +246,107 @@ class XPlaneHttpClient:
             raise XPlaneApiError("Expected datarefs list response", payload=payload)
         return data
 
-    async def get_dataref_value(self, dataref_id: int | str) -> dict[str, Any]:
-        response = await self._client.get(f"/datarefs/{dataref_id}/value")
+    async def get_dataref_value(
+        self,
+        dataref_id: int | str,
+        *,
+        index: int | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, int] = {}
+        if index is not None:
+            params["index"] = index
+        response = await self._client.get(
+            f"/datarefs/{dataref_id}/value",
+            params=params or None,
+        )
         return self._parse_response(response)
+
+    async def set_dataref_value(
+        self,
+        dataref_id: int | str,
+        value: Any,
+        *,
+        index: int | None = None,
+    ) -> None:
+        """PATCH ``/datarefs/{id}/value`` (see X-Plane Web API)."""
+        params: dict[str, int] = {}
+        if index is not None:
+            params["index"] = index
+        response = await self._client.patch(
+            f"/datarefs/{dataref_id}/value",
+            params=params or None,
+            json={"data": value},
+        )
+        self._parse_response(response, allow_empty=True)
+
+    async def set_dataref_value_by_name(
+        self,
+        name: str,
+        value: Any,
+        *,
+        index: int | None = None,
+    ) -> dict[str, Any]:
+        """Resolve a dataref by exact name, then set its value."""
+        dataref = await self.find_dataref(name)
+        await self.set_dataref_value(dataref["id"], value, index=index)
+        return dataref
+
+    async def find_command(self, name: str) -> dict[str, Any]:
+        response = await self._client.get(
+            "/commands",
+            params={
+                "filter[name]": name,
+                "fields": "id,name,description",
+            },
+        )
+        payload = self._parse_response(response)
+        items = payload.get("data", [])
+        if not items:
+            raise XPlaneApiError(f"Command not found: {name}", payload=payload)
+        return items[0]
+
+    async def list_commands(
+        self,
+        *,
+        limit: int = 10,
+        start: int = 0,
+        fields: str | None = "id,name,description",
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {
+            "limit": limit,
+            "start": start,
+        }
+        if fields is not None:
+            params["fields"] = fields
+        response = await self._client.get("/commands", params=params)
+        payload = self._parse_response(response)
+        data = payload.get("data", [])
+        if not isinstance(data, list):
+            raise XPlaneApiError("Expected commands list response", payload=payload)
+        return data
+
+    async def activate_command(
+        self,
+        command_id: int | str,
+        *,
+        duration: float = 0.0,
+    ) -> None:
+        """POST ``/command/{id}/activate`` with ``{"duration": ...}`` (seconds, max 10)."""
+        response = await self._client.post(
+            f"/command/{command_id}/activate",
+            json={"duration": duration},
+        )
+        self._parse_response(response, allow_empty=True)
+
+    async def activate_command_by_name(
+        self,
+        name: str,
+        *,
+        duration: float = 0.0,
+    ) -> dict[str, Any]:
+        command = await self.find_command(name)
+        await self.activate_command(command["id"], duration=duration)
+        return command
 
     async def get_current_aircraft(self) -> XPlaneAircraft:
         path_dataref = await self.find_dataref("sim/aircraft/view/acf_relative_path")
@@ -270,10 +378,9 @@ class XPlaneHttpClient:
         )
 
     def _get_aircraft_root(self) -> Path:
-        if self.config.xplane_root is None:
-            raise ValueError("xplane_root is required to list available planes")
-
-        aircraft_root = self.config.xplane_root / "Aircraft"
+        root = self.config.xplane_root
+        assert root is not None
+        aircraft_root = root / "Aircraft"
         if not aircraft_root.exists():
             raise ValueError(f"Aircraft directory not found: {aircraft_root}")
         return aircraft_root
@@ -284,7 +391,8 @@ class XPlaneHttpClient:
         *,
         allow_empty: bool = False,
     ) -> dict[str, Any]:
-        if allow_empty and not response.content:
+        stripped = response.content.strip()
+        if allow_empty and not stripped:
             if response.is_error:
                 raise XPlaneApiError(
                     f"X-Plane API request failed with HTTP {response.status_code}",
@@ -294,6 +402,8 @@ class XPlaneHttpClient:
         try:
             payload = response.json()
         except json.JSONDecodeError as exc:
+            if allow_empty and not response.is_error:
+                return {"data": None}
             raise XPlaneApiError(
                 f"Expected JSON response, got HTTP {response.status_code}",
                 status_code=response.status_code,
@@ -309,6 +419,8 @@ class XPlaneHttpClient:
                 payload=payload if isinstance(payload, dict) else {},
             )
         if not isinstance(payload, dict):
+            if allow_empty:
+                return {"data": None}
             raise XPlaneApiError(
                 "Expected top-level JSON object from X-Plane API",
                 status_code=response.status_code,

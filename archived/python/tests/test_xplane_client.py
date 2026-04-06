@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from pathlib import Path
 
 import httpx
@@ -166,7 +167,7 @@ def test_start_new_flight_uses_explicit_aircraft_when_provided():
         "data": {
             "ramp_start": {"airport_id": "EDDB", "ramp": "GATE 01"},
             "aircraft": {
-                "path": "Aircraft/Laminar Research/Cessna 172SP/Cessna_172SP.acf",
+                "path": "Aircraft/Laminar Research/Cessna 172 SP/Cessna_172SP.acf",
                 "livery": "default",
             },
         }
@@ -184,7 +185,7 @@ def test_start_new_flight_uses_explicit_aircraft_when_provided():
             return await api.start_new_flight(
                 "EDDB",
                 ramp="GATE 01",
-                aircraft_path="Aircraft/Laminar Research/Cessna 172SP/Cessna_172SP.acf",
+                aircraft_path="Aircraft/Laminar Research/Cessna 172 SP/Cessna_172SP.acf",
                 livery="default",
             )
 
@@ -201,7 +202,7 @@ def test_change_plane_model_uses_current_position():
                 "heading_true": 92.0,
             },
             "aircraft": {
-                "path": "Aircraft/Laminar Research/Cessna 172SP/Cessna_172SP.acf",
+                "path": "Aircraft/Laminar Research/Cessna 172 SP/Cessna_172SP.acf",
                 "livery": "default",
             },
         }
@@ -237,7 +238,7 @@ def test_change_plane_model_uses_current_position():
         async with httpx.AsyncClient(transport=transport, base_url="http://example/api/v3") as client:
             api = XPlaneHttpClient(XPlaneConfig(), client=client)
             return await api.change_plane_model(
-                "Aircraft/Laminar Research/Cessna 172SP/Cessna_172SP.acf",
+                "Aircraft/Laminar Research/Cessna 172 SP/Cessna_172SP.acf",
                 livery="default",
             )
 
@@ -249,7 +250,7 @@ def test_list_available_planes_reads_acf_files(tmp_path: Path):
     aircraft_dir = tmp_path / "Aircraft" / "Laminar Research" / "Boeing 737-800"
     aircraft_dir.mkdir(parents=True)
     (aircraft_dir / "b738.acf").write_text("acf", encoding="utf-8")
-    second_dir = tmp_path / "Aircraft" / "Laminar Research" / "Cessna 172SP"
+    second_dir = tmp_path / "Aircraft" / "Laminar Research" / "Cessna 172 SP"
     second_dir.mkdir(parents=True)
     (second_dir / "Cessna_172SP.acf").write_text("acf", encoding="utf-8")
 
@@ -264,9 +265,188 @@ def test_list_available_planes_reads_acf_files(tmp_path: Path):
         ),
         XPlaneAircraftModel(
             name="Cessna 172SP",
-            path="Aircraft/Laminar Research/Cessna 172SP/Cessna_172SP.acf",
+            path="Aircraft/Laminar Research/Cessna 172 SP/Cessna_172SP.acf",
         ),
     ]
+
+
+def test_list_available_planes_empty_without_xplane_root_logs_warning(caplog: pytest.LogCaptureFixture):
+    caplog.set_level(logging.WARNING, logger="xplane_mcp.xplane_client")
+    client = XPlaneHttpClient(XPlaneConfig())
+
+    assert client.list_available_planes() == []
+    assert any("xplane_root" in r.getMessage().lower() for r in caplog.records)
+
+
+def test_set_dataref_value_sends_patch_with_json_body():
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v3/datarefs/42/value"
+        assert request.method == "PATCH"
+        assert json.loads(request.content) == {"data": 3}
+        return httpx.Response(200, content=b"")
+
+    async def run() -> None:
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport, base_url="http://example/api/v3") as client:
+            api = XPlaneHttpClient(XPlaneConfig(), client=client)
+            await api.set_dataref_value(42, 3)
+
+    asyncio.run(run())
+
+
+def test_set_dataref_value_with_array_index():
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v3/datarefs/7/value"
+        assert request.url.params["index"] == "2"
+        assert json.loads(request.content) == {"data": 99}
+        return httpx.Response(200, content=b"")
+
+    async def run() -> None:
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport, base_url="http://example/api/v3") as client:
+            api = XPlaneHttpClient(XPlaneConfig(), client=client)
+            await api.set_dataref_value(7, 99, index=2)
+
+    asyncio.run(run())
+
+
+def test_get_dataref_value_with_array_index():
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v3/datarefs/7/value"
+        assert request.url.params["index"] == "2"
+        return httpx.Response(200, json={"data": 1.25})
+
+    async def run() -> dict:
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport, base_url="http://example/api/v3") as client:
+            api = XPlaneHttpClient(XPlaneConfig(), client=client)
+            return await api.get_dataref_value(7, index=2)
+
+    payload = asyncio.run(run())
+    assert payload["data"] == 1.25
+
+
+def test_set_dataref_value_by_name_resolves_then_patches():
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/v3/datarefs" and request.url.params.get("filter[name]") == "sim/fail/x":
+            return httpx.Response(
+                200,
+                json={"data": [{"id": 5, "name": "sim/fail/x", "value_type": "int"}]},
+            )
+        if request.url.path == "/api/v3/datarefs/5/value" and request.method == "PATCH":
+            assert json.loads(request.content) == {"data": 1}
+            return httpx.Response(200, content=b"")
+        raise AssertionError(f"Unexpected request: {request.url}")
+
+    async def run() -> dict:
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport, base_url="http://example/api/v3") as client:
+            api = XPlaneHttpClient(XPlaneConfig(), client=client)
+            return await api.set_dataref_value_by_name("sim/fail/x", 1)
+
+    meta = asyncio.run(run())
+    assert meta["id"] == 5
+
+
+def test_find_command_returns_first_match():
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v3/commands"
+        assert request.url.params["filter[name]"] == "sim/operation/pause_toggle"
+        return httpx.Response(
+            200,
+            json={
+                "data": [
+                    {
+                        "id": 9001,
+                        "name": "sim/operation/pause_toggle",
+                        "description": "Pause",
+                    }
+                ]
+            },
+        )
+
+    async def run() -> dict:
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport, base_url="http://example/api/v3") as client:
+            api = XPlaneHttpClient(XPlaneConfig(), client=client)
+            return await api.find_command("sim/operation/pause_toggle")
+
+    cmd = asyncio.run(run())
+    assert cmd["id"] == 9001
+
+
+def test_list_commands_returns_collection():
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v3/commands"
+        assert request.url.params["limit"] == "5"
+        return httpx.Response(
+            200,
+            json={"data": [{"id": 1, "name": "sim/test/cmd", "description": "d"}]},
+        )
+
+    async def run() -> list[dict]:
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport, base_url="http://example/api/v3") as client:
+            api = XPlaneHttpClient(XPlaneConfig(), client=client)
+            return await api.list_commands(limit=5)
+
+    cmds = asyncio.run(run())
+    assert cmds[0]["name"] == "sim/test/cmd"
+
+
+def test_activate_command_posts_duration():
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v3/command/88/activate"
+        assert json.loads(request.content) == {"duration": 0.0}
+        return httpx.Response(200, content=b"")
+
+    async def run() -> None:
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport, base_url="http://example/api/v3") as client:
+            api = XPlaneHttpClient(XPlaneConfig(), client=client)
+            await api.activate_command(88, duration=0.0)
+
+    asyncio.run(run())
+
+
+def test_activate_command_by_name_resolves_then_posts():
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/v3/commands":
+            return httpx.Response(
+                200,
+                json={"data": [{"id": 3, "name": "sim/operation/pause_toggle", "description": ""}]},
+            )
+        if request.url.path == "/api/v3/command/3/activate":
+            assert json.loads(request.content) == {"duration": 0.5}
+            return httpx.Response(200, content=b"")
+        raise AssertionError(f"Unexpected request: {request.url}")
+
+    async def run() -> dict:
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport, base_url="http://example/api/v3") as client:
+            api = XPlaneHttpClient(XPlaneConfig(), client=client)
+            return await api.activate_command_by_name("sim/operation/pause_toggle", duration=0.5)
+
+    meta = asyncio.run(run())
+    assert meta["id"] == 3
+
+
+def test_set_dataref_readonly_returns_api_error():
+    async def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            403,
+            json={"error_code": "dataref_is_readonly", "error_message": "read only"},
+        )
+
+    async def run() -> None:
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport, base_url="http://example/api/v3") as client:
+            api = XPlaneHttpClient(XPlaneConfig(), client=client)
+            await api.set_dataref_value(1, 0)
+
+    with pytest.raises(XPlaneApiError) as exc:
+        asyncio.run(run())
+    assert exc.value.error_code == "dataref_is_readonly"
 
 
 def test_get_current_position_reads_lat_lon_and_heading():
@@ -448,7 +628,7 @@ def test_mcp_server_starts_new_flight_with_airport_and_model():
         return await server.start_new_flight(
             "EDDB",
             ramp="GATE 01",
-            aircraft_path="Aircraft/Laminar Research/Cessna 172SP/Cessna_172SP.acf",
+            aircraft_path="Aircraft/Laminar Research/Cessna 172 SP/Cessna_172SP.acf",
             livery="default",
         )
 
@@ -476,8 +656,50 @@ def test_mcp_server_changes_plane_model():
 
     async def run():
         server = XPlaneMCPServer(FakeHttpClient())
-        return await server.change_plane_model("Aircraft/Laminar Research/Cessna 172SP/Cessna_172SP.acf", livery="default")
+        return await server.change_plane_model("Aircraft/Laminar Research/Cessna 172 SP/Cessna_172SP.acf", livery="default")
 
     result = asyncio.run(run())
     assert result["data"]["path"].endswith("Cessna_172SP.acf")
     assert result["data"]["livery"] == "default"
+
+
+def test_mcp_server_set_failure_dataref_delegates_to_http():
+    class FakeHttpClient:
+        async def set_dataref_value_by_name(self, name, value, index=None):
+            assert name == "sim/operation/failures/rel_test"
+            assert value == 2
+            assert index is None
+            return {"id": 9, "name": name, "value_type": "int"}
+
+    async def run():
+        server = XPlaneMCPServer(FakeHttpClient())
+        return await server.set_failure_dataref("sim/operation/failures/rel_test", 2)
+
+    meta = asyncio.run(run())
+    assert meta["id"] == 9
+
+
+def test_mcp_server_set_dataref_by_name():
+    class FakeHttpClient:
+        async def set_dataref_value_by_name(self, name, value, index=None):
+            return {"id": 1, "name": name, "value_type": "float"}
+
+    async def run():
+        server = XPlaneMCPServer(FakeHttpClient())
+        return await server.set_dataref_by_name("sim/custom/x", 1.5)
+
+    meta = asyncio.run(run())
+    assert meta["name"] == "sim/custom/x"
+
+
+def test_mcp_server_activate_command_by_name():
+    class FakeHttpClient:
+        async def activate_command_by_name(self, name, duration=0.0):
+            return {"id": 2, "name": name}
+
+    async def run():
+        server = XPlaneMCPServer(FakeHttpClient())
+        return await server.activate_command_by_name("sim/operation/pause_toggle", duration=0.0)
+
+    meta = asyncio.run(run())
+    assert meta["id"] == 2

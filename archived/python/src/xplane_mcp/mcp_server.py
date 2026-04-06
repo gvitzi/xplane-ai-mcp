@@ -104,3 +104,41 @@ class XPlaneMCPServer:
             rest_value=rest_value,
             websocket_value=websocket_value,
         )
+
+    async def set_dataref_by_name(
+        self,
+        name: str,
+        value: Any,
+        *,
+        index: int | None = None,
+    ) -> dict[str, Any]:
+        """Resolve a dataref by exact name and PATCH its value."""
+        return await self._http.set_dataref_value_by_name(name, value, index=index)
+
+    async def activate_command_by_name(
+        self,
+        name: str,
+        *,
+        duration: float = 0.0,
+    ) -> dict[str, Any]:
+        """Resolve a command by exact name and activate it (avoid overlapping calls)."""
+        return await self._http.activate_command_by_name(name, duration=duration)
+
+    async def set_failure_dataref(
+        self,
+        dataref_name: str,
+        value: Any,
+        *,
+        index: int | None = None,
+    ) -> dict[str, Any]:
+        """
+        Set a writable failure / malfunction dataref (same transport as any dataref).
+
+        Expects an exact X-Plane dataref name. Many stock failures live under
+        ``sim/operation/failures/``; meaning of *value* is dataref-specific.
+        """
+        return await self._http.set_dataref_value_by_name(
+            dataref_name,
+            value,
+            index=index,
+        )

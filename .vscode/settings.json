@@ -1,0 +1,11 @@
+{
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true,
+  // Clears pyproject addopts (-m "not integration") so integration tests appear in the explorer.
+  "python.testing.pytestArgs": [
+    "tests",
+    "--override-ini",
+    "addopts=",
+    "--xplane-root=E:/SteamLibrary/steamapps/common/X-Plane 12"
+  ]
+}

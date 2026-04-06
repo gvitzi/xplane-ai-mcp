@@ -2,27 +2,113 @@
 
 An [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that lets local AI assistants (for example OpenAI Codex in the editor) read simulator state from **X-Plane 12** and send commands, using X-Plane’s built-in **local Web API** (REST + WebSocket).
 
-Official API reference: [X-Plane local Web API](https://developer.x-plane.com/article/x-plane-web-api/#The_web_server).
+The **supported MCP server** is implemented in **C#** ([ModelContextProtocol](https://www.nuget.org/packages/ModelContextProtocol) SDK, **stdio** transport). The original **Python** client, PoC CLI, and **Python unit tests** live under [`archived/python/`](archived/python/) for reference. **Live integration tests** (pytest against a running simulator) stay in the repo-root [`tests/`](tests/) folder and import the archived package via `PYTHONPATH` (see [`pyproject.toml`](pyproject.toml)).
+
+## Quick usage guide
+
+### Prerequisites
+
+- **X-Plane 12** running with the **local Web API** enabled (default `http://127.0.0.1:8086`). The session must allow incoming API traffic (see [Requirements](#requirements)).
+- **[.NET SDK](https://dotnet.microsoft.com/download)** **9.0+** (solution targets `net9.0`) to build and run the MCP server.
+- **Python 3.11+** only if you run **repo-root pytest** (integration tests or the import smoke test) or work with the **archived** package.
+
+### Install (repo root)
+
+```bash
+task install
+# or: make install   /   .\make.ps1 install
+```
+
+This restores and builds [`src/XPlaneMcp.sln`](src/XPlaneMcp.sln) and `pip install -e ".[dev]"` for pytest dependencies. Use `task install-dotnet` or `task install-py-dev` to do only one side.
+
+### Build and deploy (publish folder)
+
+Publish a **Release** build to [`artifacts/xplane-mcp/`](artifacts/xplane-mcp/) (gitignored):
+
+```bash
+task publish
+# or: make publish   /   .\make.ps1 publish
+# Unix: task publish-sh   /   make publish-sh   /   bash scripts/publish-server.sh
+```
+
+Point your MCP client at `artifacts/xplane-mcp/XPlaneMcp.Server.exe` (Windows) or run with `dotnet /path/to/XPlaneMcp.Server.dll`.
+
+### Local MCP configuration (Cursor)
+
+Register a **stdio** MCP server. For [Cursor](https://docs.cursor.com/context/mcp), use project `.cursor/mcp.json` or **Settings → Tools & MCP**.
+
+**Published executable (recommended after `task publish`):**
+
+```json
+{
+  "mcpServers": {
+    "xplane-ai-mcp": {
+      "command": "E:\\path\\to\\xplane-ai-mcp\\artifacts\\xplane-mcp\\XPlaneMcp.Server.exe",
+      "args": [],
+      "cwd": "E:\\path\\to\\xplane-ai-mcp",
+      "env": {}
+    }
+  }
+}
+```
+
+**Development (`dotnet run`):**
+
+```json
+{
+  "mcpServers": {
+    "xplane-ai-mcp": {
+      "command": "dotnet",
+      "args": ["run", "--project", "src/XPlaneMcp.Server/XPlaneMcp.Server.csproj", "-c", "Release"],
+      "cwd": "E:\\path\\to\\xplane-ai-mcp",
+      "env": {}
+    }
+  }
+}
+```
+
+Use forward slashes in `cwd` on macOS/Linux. Optional **environment variables** (read by the server):
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `XPLANE_HOST` | `127.0.0.1` | Web API host |
+| `XPLANE_PORT` | `8086` | Web API port |
+| `XPLANE_TIMEOUT` | `5` | HTTP timeout (seconds) |
+| `XPLANE_ROOT` | *(unset)* | X-Plane install root; required for `list_available_planes` / aircraft paths |
+
+### Example prompts
+
+These assume the assistant can call your X-Plane MCP tools (wording can be adapted):
+
+- “What are my current latitude, longitude, and indicated airspeed from the simulator?”
+- “Start a new flight at **KPDX** ramp **A1** with the current aircraft (or tell me if the API needs an explicit aircraft path).”
+- “Resolve the dataref for outside air temperature, read its value, and report it with units.”
+- “For a training scenario, trigger a **complete failure on engine 1** via the failure datarefs, then summarize how I would clear it in X-Plane.”
+
+---
+
+Official X-Plane API reference: [X-Plane local Web API](https://developer.x-plane.com/article/x-plane-web-api/#The_web_server).
 
 ## Goals
 
-- **Read state**: aircraft, flight, and environment-related values via datarefs (and later commands / flight init where the API allows).
+- **Read state**: aircraft, flight, and environment-related values via datarefs (and commands / flight init where the API allows).
 - **Act**: set writable datarefs, activate commands, and start or update flights (API v3+) where appropriate.
-- **Safe defaults**: assume `localhost` only, respect X-Plane network/security settings, and avoid overlapping command invocations (per API notes).
+- **Safe defaults**: assume `localhost` only, respect X-Plane network/security settings, and avoid overlapping command activations (per API notes).
 
 ## Requirements
 
 | Item | Notes |
 |------|--------|
 | X-Plane | 12.1.1+ for datarefs over HTTP/WebSocket; **12.4.0+** for `POST /flight` and `PATCH /flight` ([flight init API](https://developer.x-plane.com/article/x-plane-web-api/#Start_a_flight_v3)) |
-| Python | 3.11+ recommended |
+| .NET | SDK **9.0+** for the MCP server |
+| Python | 3.11+ optional (integration pytest + archived package) |
 | Network | API is on `http://localhost:8086` by default (WebSocket `ws://localhost:8086/api/v3`). Use `--web_server_port=` if you change the port. “Disable Incoming Traffic” returns **403** for API calls. |
 
-## Architecture (target)
+## Architecture
 
 ```mermaid
 flowchart LR
-  AI[AI client / Codex] --> MCP[MCP server Python]
+  AI[AI client] --> MCP[MCP server C#]
   MCP --> REST[REST client]
   MCP --> WS[WebSocket client]
   REST --> XP[X-Plane web server]
@@ -30,141 +116,72 @@ flowchart LR
 ```
 
 - **REST**: list/find datarefs and commands by name, read values, `PATCH` values, `POST` command activation, `POST`/`PATCH` flight.
-- **WebSocket**: subscribe to dataref updates (10 Hz), batch `dataref_set_values`, command subscribe/set for streaming and hold/release patterns.
+- **WebSocket**: subscribe to dataref updates (e.g. for `get_state` with `use_websocket`).
 
 Dataref and command **IDs are session-local**; resolve names via the list endpoints after each X-Plane start.
 
-## Repository layout (intended)
+## Repository layout
 
+```text
+src/XPlaneMcp.sln          # .NET solution
+src/XPlaneMcp.Server/      # MCP stdio server + X-Plane clients + tools
+archived/python/           # legacy Python package, unit tests, PoC, Taskfile/Makefile
+tests/                     # pytest integration tests + conftest (PYTHONPATH → archived/python/src)
+scripts/publish-server.*   # publish to artifacts/xplane-mcp
+workspace_stub/            # minimal package so pip install -e ".[dev]" works at repo root
+pyproject.toml             # repo-root pytest + dev deps only
+Taskfile.yml / Makefile    # .NET + integration pytest (not archived Python)
 ```
-src/xplane_mcp/       # MCP server + X-Plane HTTP/WS client
-tests/                # pytest (unit + optional integration markers)
-Taskfile.yml          # install, test, lint, run-server, …
-pyproject.toml
-```
 
-## Development plan
+## Development plan (status)
 
-### Phase 0 — Proof of concept (do this first)
-
-1. **Connectivity**: `GET http://localhost:8086/api/capabilities` (unversioned path `/api/capabilities`) to confirm the server is up and which API versions X-Plane reports.
-2. **Versioned base URL**: use `http://localhost:8086/api/v3/...` for REST as in the docs.
-3. **Start a flight**: `POST /api/v3/flight` with JSON body `{ "data": { ... } }` matching the [Flight Initialization API](https://developer.x-plane.com/article/x-plane-web-api/#Start_a_flight_v3) (aircraft path, ramp start or other supported init).
-4. **Read one dataref**: `GET /api/v3/datarefs?filter[name]=<exact_name>&fields=id,name,value_type`, then `GET /api/v3/datarefs/{id}/value` with headers `Accept: application/json` and `Content-Type: application/json` where required.
-5. **Manual checklist**: X-Plane running, incoming traffic not disabled, correct port; capture a short log of HTTP status codes and response shapes.
-
-Exit criteria: repeatable script or minimal module that starts a defined flight and prints at least one dataref value without crashing.
-
-### Phase 1 — Client library
-
-- Small HTTP client (timeouts, JSON errors with `error_code` / `error_message`).
-- Optional WebSocket client: connect to `ws://localhost:8086/api/v3`, `req_id` tracking, handle `dataref_update_values` and `result` messages.
-- Helpers: resolve dataref/command by name with caching for the current session.
-
-### Phase 2 — MCP surface
-
-- Map tools/resources to: capabilities, list/search datarefs, get/set values, list/search commands, activate command, start/update flight (v3).
-- Document limits (localhost-only today, ID stability, no overlapping REST command activations).
-
-### Phase 3 — Quality and ops
-
-- pytest: unit tests with mocked HTTP/WS; optional `integration` marker for real X-Plane (skipped in CI by default).
-- Configuration: base URL, port, request timeouts, optional flight preset paths for demos.
+- **Phase 0 — PoC**: superseded for **connectivity** by the C# server; the **Python PoC** remains in [`archived/python/`](archived/python/) (see below).
+- **Phase 1 — Client library**: implemented in C# (`XPlaneRestClient`, `XPlaneWebSocketSession`) and preserved in Python under `archived/python`.
+- **Phase 2 — MCP surface**: **stdio MCP tools** implemented in [`XPlaneMcpTools`](src/XPlaneMcp.Server/XPlaneMcpTools.cs) (capabilities, flight, datarefs, commands, failures, `get_state`, etc.).
+- **Phase 3 — Quality**: `dotnet test` + pytest; integration tests marked `integration`.
 
 ## Tech stack
 
 | Area | Choice |
 |------|--------|
-| Language | Python |
-| Tests | [pytest](https://pytest.org/) |
-| Tasks | [Task](https://taskfile.dev/) (`task install`, `task test`, …) |
+| MCP server | C# / **net9.0**, [ModelContextProtocol](https://www.nuget.org/packages/ModelContextProtocol) |
+| Archived reference | Python 3.11+ under `archived/python/` |
+| Tests | **xUnit** (.NET), **pytest** (integration + smoke) |
+| Tasks | [Task](https://taskfile.dev/) (`task …`), **Make** / **make.ps1** at repo root; **separate** Taskfile/Makefile in `archived/python/` |
 | Commits | [Conventional Commits](https://www.conventionalcommits.org/) (see below) |
 
-## Quick start (developers)
+## Archived Python (PoC and unit tests)
+
+From [`archived/python/`](archived/python/):
 
 ```bash
-python -m venv .venv
-# Windows: .venv\Scripts\activate
-# Unix: source .venv/bin/activate
+cd archived/python
 task install
 task test
+task mcp -- --skip-flight
+# or: make / make.ps1 with the same targets
 ```
 
-## PoC usage
+Paths in the archived README-style commands refer to modules under `archived/python/src/xplane_mcp/` (`xplane_client.py`, `mcp_server.py`, `poc.py`, …).
 
-Run the Phase 0 proof of concept with:
+## Integration tests (repo root)
+
+The default `pytest` run excludes `integration`-marked tests (`addopts` in [`pyproject.toml`](pyproject.toml)). Live simulator tests change the running X-Plane session; run them only when X-Plane is up with the Web API enabled.
 
 ```bash
-python -m xplane_mcp.poc --skip-flight
+pytest -m integration --xplane-root="E:\SteamLibrary\steamapps\common\X-Plane 12"
+# or: task test-integration -- --xplane-root="..."
 ```
 
-To attempt a new flight as well, provide a JSON file containing the `data` object for
-`POST /api/v3/flight`:
+Pytest CLI options are registered from [`tests/conftest.py`](tests/conftest.py):
 
-```bash
-python -m xplane_mcp.poc --flight-json examples/flight.json
-```
+- `--xplane-root` (required for integration): path to your X-Plane installation
+- `--xplane-host`, `--xplane-port`, `--xplane-timeout`: Web API connection tuning
+- `--xplane-test-airport`, `--xplane-test-ramp`: start-flight test (defaults: KPDX, A1)
+- `--xplane-weather-region-index`: array index for `sim/weather/region/*` in the sea-level pressure test, or `-1` (default) to auto-detect scalar vs index `0`
+- `--xplane-keep-cloud-layer`: for regional cloud integration tests (low broken layer, clear sky), skip restoring written cloud datarefs so you can inspect the sim (see test docstrings for weather UI and timing)
 
-To relocate the current aircraft to an airport by ICAO code, reuse the currently
-loaded aircraft and provide an airport plus ramp:
-
-```bash
-python -m xplane_mcp.poc --airport-icao EDDB --airport-ramp "GATE 01"
-```
-
-To start a new flight with both an airport and an explicit aircraft model:
-
-```bash
-python -m xplane_mcp.poc --airport-icao EDDB --airport-ramp "GATE 01" --aircraft-path "Aircraft/Laminar Research/Cessna 172SP/Cessna_172SP.acf"
-```
-
-To list aircraft from the local X-Plane installation, provide the X-Plane root:
-
-```bash
-python -m xplane_mcp.poc --xplane-root "C:\X-Plane 12" --list-planes --skip-flight
-```
-
-To change the current aircraft model while staying at the current position:
-
-```bash
-python -m xplane_mcp.poc --aircraft-path "Aircraft/Laminar Research/Cessna 172SP/Cessna_172SP.acf"
-```
-
-What the PoC does:
-
-- Checks `GET /api/capabilities`
-- Connects to `ws://localhost:8086/api/v3`
-- Resolves one dataref name to a session-local ID
-- Reads the current value over REST
-- Waits for one streamed WebSocket update for the same dataref
-- Optionally starts a new flight via `POST /api/v3/flight`
-- Can start a new flight at an ICAO airport by reading the current aircraft path from X-Plane and issuing a new `POST /flight`
-- Can list installed aircraft models from the local X-Plane `Aircraft/` directory
-- Can switch the current aircraft model by reading the current lat/lon/heading and starting a new flight in place
-
-Current code separation:
-
-- `src/xplane_mcp/xplane_client.py`: raw HTTP + WebSocket client
-- `src/xplane_mcp/mcp_server.py`: MCP-facing service layer that uses the X-Plane client
-- `src/xplane_mcp/poc.py`: CLI runner for the README Phase 0 checklist
-
-## Integration tests
-
-The default `pytest` suite is unit-only and uses mocks. Live simulator tests are opt-in because they really do change the running X-Plane session.
-
-Run them with:
-
-```bash
-set XPLANE_RUN_INTEGRATION=1
-set XPLANE_ROOT=E:\SteamLibrary\steamapps\common\X-Plane 12
-pytest -m integration
-```
-
-Optional overrides:
-
-- `XPLANE_HOST` and `XPLANE_PORT` for non-default API binding
-- `XPLANE_TIMEOUT` for slower aircraft loads
-- `XPLANE_TEST_AIRPORT` and `XPLANE_TEST_RAMP` for the live start-flight test
+**Cloud / clear-sky test visuals:** those tests normally **revert** regional cloud datarefs when they finish. Use `--xplane-keep-cloud-layer`, switch X-Plane weather to **manual / custom** (not live METAR), turn on **volumetric clouds** (for clouds), and wait up to about **60 seconds** for the sim to refresh drawn clouds.
 
 ## Conventional Commits
 

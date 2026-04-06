@@ -3,27 +3,27 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "xplane-mcp"
-version = "0.1.0"
-description = "MCP server for X-Plane 12 via the local Web API"
-readme = "README.md"
+name = "xplane-ai-mcp-workspace"
+version = "0.2.0"
+description = "Workspace metadata for repo-root integration tests; primary MCP server is .NET (see src/XPlaneMcp.Server)."
 requires-python = ">=3.11"
-dependencies = [
-  "httpx>=0.27",
-  "websockets>=12.0",
-]
+dependencies = []
 
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0",
+  "httpx>=0.27",
+  "websockets>=12.0",
 ]
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
+include = ["workspace_stub"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["archived/python/src"]
+addopts = ["-m", "not integration"]
 markers = [
-  "integration: live tests against a running X-Plane instance",
+  "integration: live tests against a running X-Plane instance; run with: pytest -m integration --xplane-root=PATH",
 ]
