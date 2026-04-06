@@ -125,13 +125,14 @@ Dataref and command **IDs are session-local**; resolve names via the list endpoi
 ```text
 src/XPlaneMcp.sln          # .NET solution
 src/XPlaneMcp.Server/      # MCP stdio server + X-Plane clients + tools
-python/src/xplane_mcp/     # Python Web API client (for pytest integration tests only)
-tests/                     # pytest integration tests + conftest (PYTHONPATH → python/src)
+python/src/xplane_mcp/     # Python Web API client (editable install + pytest PYTHONPATH)
+tests/                     # pytest integration tests + conftest (`pythonpath` → python/src)
 scripts/publish-server.*   # publish to artifacts/xplane-mcp
-workspace_stub/            # minimal package so pip install -e ".[dev]" works at repo root
-pyproject.toml             # repo-root pytest + dev deps only
+pyproject.toml             # pip install -e ".[dev]", pytest config
 Taskfile.yml / Makefile    # .NET + integration pytest
 ```
+
+Optional local **`refs/`** (not in git): CSV and index snapshots from X-Plane’s `DataRefs.txt` are gitignored. Generate them with `python scripts/datarefs_txt_to_csv.py --help`.
 
 ## Development plan (status)
 

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "xplane-ai-mcp-workspace"
 version = "0.2.0"
-description = "Workspace metadata for repo-root integration tests; primary MCP server is .NET (see src/XPlaneMcp.Server). Python client for pytest lives under python/src/xplane_mcp."
+description = "Repo-root dev deps and pytest config; MCP server is .NET (see src/XPlaneMcp.Server). Editable install exposes python/src/xplane_mcp."
 requires-python = ">=3.11"
 dependencies = []
 
@@ -17,8 +17,7 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["workspace_stub"]
+where = ["python/src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

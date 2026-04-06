@@ -7,10 +7,14 @@ artifacts/
 __pycache__/
 *.py[cod]
 *.egg-info/
+**/*.egg-info/
 .eggs/
 .pytest_cache/
 .venv/
 venv/
+
+# Local reference exports (generate with scripts/datarefs_txt_to_csv.py)
+refs/
 
 # Editor / OS
 .DS_Store
