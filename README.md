@@ -55,7 +55,8 @@ X-Plane must accept connections from this MCP server on your PC (usually **127.0
 
 ### 3. Download this MCP server
 
-**Published builds:** *link to release assets will go here `.msi`, etc.*
+[![Download Latest](https://img.shields.io/badge/Download-latest%20version-blue?style=for-the-badge)](https://github.com/gvitzi/xplane-ai-mcp/releases/latest/download/xplane_mcp_installer.msi)
+
 
 - Run the installer
 - Keep the installation path handy (default: `C:\Program Files\xplaneMCP`) - your AI app’s config will need to know where the MCP .exe is.
