@@ -6,6 +6,10 @@
 
 MCP server for X-Plane 12: drive X-Plane from a local AI assistant with natural language (text or voice) — aircraft, start location, weather, AI traffic, failures, and more.
 
+## Demo
+
+![Codex AI MCP Demo](./codex_chat_wrapped_white_fast.gif)
+
 </div>
 
 **In short:** this program is an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that connects **X-Plane 12** to a **local AI assistant** (for example Cursor, OpenAI Codex, or Claude Code). The assistant can read simulator state and call X-Plane’s **official local Web API** so you can change weather, position, failures, and more by chatting — including voice if your AI app supports it.
