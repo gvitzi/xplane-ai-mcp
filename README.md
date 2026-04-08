@@ -8,7 +8,7 @@ MCP server for X-Plane 12: drive X-Plane from a local AI assistant with natural 
 
 ## Demo
 
-![Codex AI MCP Demo](./codex_chat_wrapped_white_fast.gif)
+![Codex AI MCP](examlpe_prompts.gif) 
 
 </div>
 
